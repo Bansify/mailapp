@@ -1,0 +1,8 @@
+{
+  "name": "MailApp",
+  "description": "A full-featured Material 3 email client with threaded conversations, smart categories, multi-account switching, search filters, drafts, and compose.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
