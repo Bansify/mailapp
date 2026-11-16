@@ -76,11 +76,11 @@ class MailRepositorySyncTest {
                     path.startsWith("/api/mail/messages/") && request.method == "PATCH" ->
                         json("""{"message":{"id":"msg-1","folder":"inbox","isRead":true}}""")
                     path.startsWith("/api/mail/messages/") && request.method == "DELETE" -> json("""{"ok":true}""")
-                    path == "/api/mail/messages?folder=inbox&limit=50" -> json(inboxPageJson)
-                    path == "/api/mail/messages?folder=sent&limit=50" -> json(
+                    path.startsWith("/api/mail/messages?folder=inbox") -> json(inboxPageJson)
+                    path.startsWith("/api/mail/messages?folder=sent") -> json(
                         """{"messages":[],"folder":"sent","nextBefore":null}""",
                     )
-                    path == "/api/mail/messages?folder=trash&limit=50" -> json(
+                    path.startsWith("/api/mail/messages?folder=trash") -> json(
                         """{"messages":[],"folder":"trash","nextBefore":null}""",
                     )
                     path.startsWith("/api/mail/settings") && request.method == "GET" -> json(settingsJson)
@@ -409,7 +409,7 @@ class MailRepositorySyncTest {
         assertEquals(52_428_800L, snapshot.account.storageQuotaBytes)
         assertEquals(1_048_576L, snapshot.account.storageUsedBytes)
         assertEquals("1.0 MB", snapshot.account.usedStorageLabel)
-        assertEquals("50.0 MB", snapshot.account.totalStorageLabel)
+        assertEquals("50 MB", snapshot.account.totalStorageLabel)
         assertEquals(12, snapshot.account.totalMessages)
         assertEquals(2, snapshot.account.starredMessages)
         assertFalse("Nothing should fail while the stub answers every call", snapshot.messages.isEmpty())

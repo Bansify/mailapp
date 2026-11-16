@@ -313,12 +313,12 @@ class PeerBrokerDiscoveryTest {
                 ),
             ),
         )
-        val encoded = Json.encodeToString(snapshot)
+        val encoded = Json { encodeDefaults = true }.encodeToString(snapshot)
 
         assertFalse(encoded.contains("access_token", ignoreCase = true))
         assertFalse(encoded.contains("refresh_token", ignoreCase = true))
         assertTrue(encoded.contains("\"username\":\"pawan\""))
-        assertTrue(encoded.contains("\"version\":1"))
+        assertTrue("Protocol version must be advertised: $encoded", encoded.contains("\"version\":1"))
     }
 
     @Test

@@ -42,7 +42,11 @@ private class FakeOAuthService(
         return refreshResponse()
     }
 
-    override fun userInfo(accessToken: String): GothwadUserInfo = userInfo(accessToken)
+    /** Named so it does not shadow the property accessor above. */
+    private val userInfoResolver: (String) -> GothwadUserInfo
+        get() = userInfo
+
+    override fun userInfo(accessToken: String): GothwadUserInfo = userInfoResolver.invoke(accessToken)
 
     override fun revoke(refreshToken: String?, accessToken: String?): RevokeStatus {
         revokeCalls.incrementAndGet()

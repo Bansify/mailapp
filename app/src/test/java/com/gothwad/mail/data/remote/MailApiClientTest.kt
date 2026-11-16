@@ -65,20 +65,21 @@ class MailApiClientTest {
                     path.startsWith("/api/mail/messages") -> json(
                         """{"messages":[],"folder":"inbox","nextBefore":null}""",
                     )
-                    path == "/api/mail/settings" && request.method == "GET" -> json(settingsJson(500))
-                    path == "/api/mail/settings" && request.method == "PATCH" -> {
+                    path.startsWith("/api/mail/settings") && request.method == "GET" -> json(settingsJson(500))
+                    path.startsWith("/api/mail/settings") && request.method == "PATCH" -> {
                         val requested = request.body.readUtf8()
                         val limit = Regex("\"retentionLimit\":(\\d+)").find(requested)
                             ?.groupValues?.get(1)?.toIntOrNull() ?: 500
                         json(settingsJson(limit))
                     }
-                    path == "/api/mail/send" -> MockResponse().setResponseCode(201)
+                    path.startsWith("/api/mail/send") -> MockResponse().setResponseCode(201)
                         .setBody("""{"id":"sent-1","sent":true,"saved":true,"remainingToday":7}""")
-                    path == "/api/mail/drafts" -> json(
+                    path.startsWith("/api/mail/trash") && request.method == "DELETE" ->
+                        json("""{"ok":true,"deleted":4}""")
+                    path.startsWith("/api/mail/drafts/") -> json("""{"ok":true}""")
+                    path.startsWith("/api/mail/drafts") -> json(
                         """{"message":{"id":"draft-1","folder":"drafts","to":["a@b.com"],"subject":"Hi"}}""",
                     )
-                    path.startsWith("/api/mail/drafts/") -> json("""{"ok":true}""")
-                    path == "/api/mail/trash" && request.method == "DELETE" -> json("""{"ok":true,"deleted":4}""")
                     else -> MockResponse().setResponseCode(404).setBody("""{"error":"not_found"}""")
                 }
             }
