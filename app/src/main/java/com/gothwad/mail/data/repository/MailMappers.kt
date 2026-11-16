@@ -9,7 +9,6 @@ import com.gothwad.mail.data.model.ThreadMessage
 import com.gothwad.mail.data.remote.ApiMailSettings
 import com.gothwad.mail.data.remote.ApiMessage
 import com.gothwad.mail.data.remote.ApiSessionUser
-import com.gothwad.mail.data.remote.ServerFolder
 import com.gothwad.mail.auth.GothwadUserInfo
 import java.time.Instant
 import java.time.ZoneId

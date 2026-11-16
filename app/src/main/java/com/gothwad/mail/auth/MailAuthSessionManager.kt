@@ -1,5 +1,7 @@
 package com.gothwad.mail.auth
 
+import com.gothwad.mail.auth.broker.DirectoryAccountRecord
+import com.gothwad.mail.auth.broker.DirectorySnapshot
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
