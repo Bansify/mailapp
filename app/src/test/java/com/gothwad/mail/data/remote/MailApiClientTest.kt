@@ -2,6 +2,7 @@ package com.gothwad.mail.data.remote
 
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.test.runTest
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -354,8 +355,8 @@ class MailApiClientTest {
 
     @Test
     fun `cross host request is refused before sending the token`() {
-        val base = okhttp3.HttpUrl.get("https://mail.gothwadtech.com/api")
-        val other = okhttp3.HttpUrl.get("https://evil.example.com/api/mail/messages")
+        val base = "https://mail.gothwadtech.com/api".toHttpUrl()
+        val other = "https://evil.example.com/api/mail/messages".toHttpUrl()
         val failure = runCatching { MailApiClient.assertSameHost(base, other) }
         assertTrue(failure.isFailure)
         // Same-origin requests pass.
