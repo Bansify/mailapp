@@ -67,9 +67,9 @@ com.gothwad.mail
 | Mailbox settings | `GET` / `PATCH https://mail.gothwadtech.com/api/mail/settings` |
 | Message list & search | `GET https://mail.gothwadtech.com/api/mail/messages` |
 | Message detail | `GET https://mail.gothwadtech.com/api/mail/messages/:id` (`If-None-Match`) |
-| Mutations | `PATCH …/messages/:id`, `POST …/messages/batch`, `DELETE …/messages/:id`, `DELETE …/trash` |
-| Drafts | `POST …/drafts`, `DELETE …/drafts/:id` |
-| Send | `POST …/send` |
+| Mutations | `PATCH /api/mail/messages/:id`, `POST /api/mail/messages/batch`, `DELETE /api/mail/messages/:id`, `DELETE /api/mail/trash` |
+| Drafts | `POST /api/mail/drafts`, `DELETE /api/mail/drafts/:id` |
+| Send | `POST /api/mail/send` (returns `remainingToday`) |
 
 The `Authorization: Bearer` header is attached **only** to `mail.gothwadtech.com` requests that
 need it, redirects are never followed, and the session probe is sent without a token.
@@ -86,8 +86,23 @@ need it, redirects are never followed, and the session probe is sent without a t
 ## Build and test
 
 ```bash
+python3 tools/check_docs.py             # README links, required sections, endpoint table
+python3 tools/check_android_scaffold.py # XML, manifest, version catalog, wrapper, release workflow
 ./gradlew testDebugUnitTest assembleDebug
 ```
+
+The two `tools/` scripts are static checks copied in spirit from `GothwadTech/accountsapp`. They
+run in `.github/workflows/planning.yml` (documentation only) and at the start of the Android CI
+build, so a broken README link, a malformed manifest or an unsigned release contract fails fast
+instead of after a full Gradle build. They are **not** a substitute for the Gradle tests.
+
+### Workflows
+
+| Workflow | Trigger | What it does |
+| --- | --- | --- |
+| `android-ci.yml` | push, pull request, manual | static checks, then `testDebugUnitTest`, `lintDebug`, `assembleDebug`; uploads the test report and debug APK |
+| `planning.yml` | push, pull request, manual | `python3 tools/check_docs.py` |
+| `release.yml` | push to `main`/`master`, `v*` tags, manual | builds Release APK + Debug APK + Play AAB, zipaligns and signs them, publishes a GitHub Release |
 
 Unit tests cover PKCE (`S256` vector), callback validation, single-flight refresh and credential
 eviction, sign-out semantics, peer trust verification and discovery, the Mail API client

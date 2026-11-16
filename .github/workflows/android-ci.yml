@@ -36,6 +36,8 @@ jobs:
             fi
           fi
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+      - name: Validate documentation and resources
+        run: python3 tools/check_docs.py && python3 tools/check_android_scaffold.py
       - name: Unit tests, lint and debug APK
         run: |
           set -euo pipefail
