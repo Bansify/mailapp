@@ -46,18 +46,24 @@ jobs:
           else
             echo "==== FAILING TESTS ===="
             python3 - <<'PY' || true
-          import glob, xml.etree.ElementTree as ET
-          for path in glob.glob("app/build/test-results/testDebugUnitTest/*.xml"):
+          import glob
+          import os
+          import xml.etree.ElementTree as ET
+
+          def emit(title, body):
+              safe = body.replace("%", "%25").replace("\r", "").replace("\n", "%0A")[:6000]
+              print(f"::error title={title}::{safe}")
+
+          for path in sorted(glob.glob("app/build/test-results/testDebugUnitTest/*.xml")):
               try:
                   root = ET.parse(path).getroot()
               except Exception:
                   continue
               for case in root.iter("testcase"):
-                  for failure in case.findall("failure"):
-                      print("FAIL:", case.get("classname"), "::", case.get("name"))
-                      print((failure.get("message") or "")[:1500])
-                      print((failure.text or "")[:2500])
-                      print("-" * 60)
+                  problems = list(case.findall("failure")) + list(case.findall("error"))
+                  for failure in problems:
+                      detail = (failure.get("message") or "") + "\n" + (failure.text or "")
+                      emit(f"{case.get('classname')}.{case.get('name')}", detail.strip())
           PY
             tail -n 120 "$RUNNER_TEMP/ci-gradle.log"
             python3 - "$RUNNER_TEMP/ci-gradle.log" <<'PY'

@@ -52,6 +52,7 @@ class MailRepositorySyncTest {
     /** Records the requests the repository makes so the API mapping can be asserted. */
     private val recorded = mutableListOf<RecordedRequest>()
     private var detailResponse: MockResponse? = null
+    private var detailAlwaysNotModified: Boolean = false
 
     @Before
     fun setUp() {
@@ -61,6 +62,9 @@ class MailRepositorySyncTest {
                 recorded.add(request)
                 val path = request.path.orEmpty()
                 return when {
+                    path.startsWith("/api/mail/messages/") && request.method == "GET" &&
+                        detailAlwaysNotModified -> MockResponse().setResponseCode(304)
+                        .addHeader("ETag", request.getHeader("If-None-Match") ?: "\"etag-1\"")
                     path.startsWith("/api/mail/messages/") && request.method == "GET" ->
                         detailResponse ?: json(
                             """{"message":{"id":"msg-1","folder":"inbox","from":{"name":"Ananya","email":"ananya@gothwadtech.com"},
@@ -214,13 +218,13 @@ class MailRepositorySyncTest {
     fun `a 304 response reuses the cached body instead of downloading it again`() = runTest {
         repository.upsertAccount(accountA)
         repository.refreshCurrentFolder(accountA, MailFolder.PRIMARY)
-        val thread = dao.getThreadByServerId(accountA.email, "msg-1")!!
-        // Simulate a previously downloaded body with its ETag.
+        // A previously downloaded body with its ETag, but marked as not currently loaded.
         dao.updateBody(accountA.email, "msg-1", "cached body", null, "\"etag-1\"", "snippet")
-        val cachedThread = dao.getThreadByServerId(accountA.email, "msg-1")!!
-        dao.updateThread(cachedThread.copy(bodyLoaded = false))
+        dao.updateThread(dao.getThreadByServerId(accountA.email, "msg-1")!!.copy(bodyLoaded = false))
 
-        detailResponse = MockResponse().setResponseCode(304).addHeader("ETag", "\"etag-1\"")
+        // The stub Worker only answers 304 for the ETag it handed out.
+        detailResponse = null
+        detailAlwaysNotModified = true
 
         val opened = repository.openThread(accountA, dao.getThreadByServerId(accountA.email, "msg-1")!!)
 
@@ -406,7 +410,8 @@ class MailRepositorySyncTest {
         assertEquals(1_048_576L, snapshot.account.storageUsedBytes)
         assertEquals("1.0 MB", snapshot.account.usedStorageLabel)
         assertEquals("50.0 MB", snapshot.account.totalStorageLabel)
-        assertEquals(4, snapshot.account.totalMessages)
+        assertEquals(12, snapshot.account.totalMessages)
+        assertEquals(2, snapshot.account.starredMessages)
         assertFalse("Nothing should fail while the stub answers every call", snapshot.messages.isEmpty())
         assertNotNull(snapshot.settings)
         assertEquals(3, snapshot.session?.unread?.get("pawan"))
