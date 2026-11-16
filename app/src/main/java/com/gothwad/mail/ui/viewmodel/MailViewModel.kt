@@ -127,15 +127,28 @@ class MailViewModel(
         }
     }
 
+    /** Auth-derived state, grouped so the main combine stays on the typed 5-flow overload. */
+    private data class AuthSlice(
+        val state: AuthSessionState,
+        val failure: MailAuthFailure?,
+        val discovered: List<DiscoveredAccount>,
+    )
+
+    private val authSlice: Flow<AuthSlice> = combine(
+        auth.state,
+        auth.sessionManager.failure,
+        auth.discoveredAccounts,
+    ) { state, failure, discovered -> AuthSlice(state, failure, discovered) }
+
     val uiState: StateFlow<MailUiState> = combine(
         activeThreadsFlow,
         repository.accounts,
         repository.settings,
-        auth.state,
-        auth.discoveredAccounts,
-        auth.sessionManager.failure,
+        authSlice,
         localState
-    ) { activeThreads, accounts, settings, authState, discovered, authFailure, nav ->
+    ) { activeThreads, accounts, settings, authSliceValue, nav ->
+        val authState = authSliceValue.state
+        val discovered = authSliceValue.discovered
         val activeAccount = accounts.firstOrNull { it.isActive } ?: accounts.firstOrNull()
         val accountThreads = activeThreads
 
@@ -162,7 +175,7 @@ class MailViewModel(
             isLoading = authState is AuthSessionState.Initializing,
             isRefreshing = nav.isRefreshing,
             authState = screenState,
-            authFailure = authFailure ?: when (authState) {
+            authFailure = authSliceValue.failure ?: when (authState) {
                 is AuthSessionState.StorageCorrupted -> MailAuthFailure.StorageUnavailable
                 else -> null
             },
