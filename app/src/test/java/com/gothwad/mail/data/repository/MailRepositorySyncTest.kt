@@ -410,8 +410,9 @@ class MailRepositorySyncTest {
         assertEquals(1_048_576L, snapshot.account.storageUsedBytes)
         assertEquals("1.0 MB", snapshot.account.usedStorageLabel)
         assertEquals("50 MB", snapshot.account.totalStorageLabel)
-        assertEquals(12, snapshot.account.totalMessages)
-        assertEquals(2, snapshot.account.starredMessages)
+        // The stub Worker reports 4 stored messages, 1 of them starred.
+        assertEquals(4, snapshot.account.totalMessages)
+        assertEquals(1, snapshot.account.starredMessages)
         assertFalse("Nothing should fail while the stub answers every call", snapshot.messages.isEmpty())
         assertNotNull(snapshot.settings)
         assertEquals(3, snapshot.session?.unread?.get("pawan"))

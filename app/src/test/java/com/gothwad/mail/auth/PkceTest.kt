@@ -76,7 +76,10 @@ class PkceTest {
         val pending = PendingLogin(state = "s", verifier = "v", createdAt = 1L)
         val authorize = AuthorizeRequest.authorizeUrl(pending)
         val chooser = AuthorizeRequest.chooseAccountUrl(authorize)
-        assertTrue(chooser.startsWith("https://accounts.gothwadtech.com/signin?choose=1&next="))
+        assertTrue(
+            "Chooser must sit on the site root, not under /api: $chooser",
+            chooser.startsWith("https://accounts.gothwadtech.com/signin?choose=1&next="),
+        )
         assertTrue(chooser.contains("oauth%2Fauthorize"))
     }
 }

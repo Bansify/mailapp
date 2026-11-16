@@ -360,14 +360,34 @@ class MailAuthSessionManagerTest {
     @Test
     fun `switching accounts updates the active user and last seen time`() = runTest {
         val store = InMemoryTokenStore()
-        val session = manager(store, FakeOAuthService())
+        // Each sign-in must return a different identity, otherwise both logins describe the
+        // same account and there would be nothing to switch between.
+        val issued = AtomicInteger()
+        val oauth = FakeOAuthService(
+            exchangeResponse = {
+                val index = issued.incrementAndGet()
+                TokenResponse("access-$index", "refresh-$index", 3600L)
+            },
+            userInfo = { token ->
+                val index = token.substringAfterLast('-')
+                GothwadUserInfo(
+                    userId = "user-$index",
+                    username = "pawan$index",
+                    name = "Pawan Gothwad $index",
+                    email = "pawan$index@gothwadtech.com",
+                    picture = null,
+                )
+            },
+        )
+        val session = manager(store, oauth)
         session.load()
         val first = session.completeLogin(
             "$redirect?code=1&state=${session.beginLogin().state}",
-        ).let { it }
+        )
         val secondPending = session.beginLogin()
         val second = session.completeLogin("$redirect?code=2&state=${secondPending.state}")
 
+        assertEquals("user-2", second.userId)
         assertEquals(second.userId, session.activeAccountId())
 
         session.switchTo(first.userId)

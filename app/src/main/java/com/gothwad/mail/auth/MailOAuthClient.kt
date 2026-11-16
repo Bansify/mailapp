@@ -189,7 +189,8 @@ object AuthorizeRequest {
         authorizeUrl: String,
         config: AuthConfig = AuthConfig.DEFAULT,
     ): String {
-        val base = config.accountsBaseUrl.trimEnd('/')
+        // The chooser is a web page on the site root; only the OAuth endpoints live under /api.
+        val base = config.accountsBaseUrl.trimEnd('/').removeSuffix("/api")
         return "$base/signin?choose=1&next=${encode(authorizeUrl)}"
     }
 

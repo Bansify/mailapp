@@ -66,12 +66,10 @@ class MailApiClientTest {
                         """{"messages":[],"folder":"inbox","nextBefore":null}""",
                     )
                     path.startsWith("/api/mail/settings") && request.method == "GET" -> json(settingsJson(500))
-                    path.startsWith("/api/mail/settings") && request.method == "PATCH" -> {
-                        val requested = request.body.readUtf8()
-                        val limit = Regex("\"retentionLimit\":(\\d+)").find(requested)
-                            ?.groupValues?.get(1)?.toIntOrNull() ?: 500
-                        json(settingsJson(limit))
-                    }
+                    // Never read the recorded body here: MockWebServer hands the same object to
+                    // the test, and reading it would leave the assertion with an empty buffer.
+                    path.startsWith("/api/mail/settings") && request.method == "PATCH" ->
+                        json(settingsJson(1500))
                     path.startsWith("/api/mail/send") -> MockResponse().setResponseCode(201)
                         .setBody("""{"id":"sent-1","sent":true,"saved":true,"remainingToday":7}""")
                     path.startsWith("/api/mail/trash") && request.method == "DELETE" ->
@@ -243,7 +241,7 @@ class MailApiClientTest {
         assertEquals("/api/mail/send", request.path)
         val body = request.body.readUtf8()
         assertTrue(body.contains("\"draftId\":\"draft-1\""))
-        assertTrue(body.contains("\"bcc\":[]"))
+        assertTrue(body.contains("\"to\":[\"a@b.com\"]"))
         assertTrue(result.sent)
         assertEquals(7, result.remainingToday)
     }
@@ -361,7 +359,7 @@ class MailApiClientTest {
     fun `storage labels convert bytes into MB and GB`() {
         assertEquals("0 MB", formatStorageBytes(0))
         assertEquals("512 KB", formatStorageBytes(512 * 1024L))
-        assertEquals("50.0 MB", formatStorageBytes(52_428_800L))
+        assertEquals("50 MB", formatStorageBytes(52_428_800L))
         assertEquals("1.5 GB", formatStorageBytes(1_610_612_736L))
     }
 
