@@ -3,21 +3,33 @@ package com.gothwad.mail.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.gothwad.mail.data.local.SeedData
+import com.gothwad.mail.auth.AuthSessionState
+import com.gothwad.mail.auth.AuthEvent
+import com.gothwad.mail.auth.GothwadMailAuth
+import com.gothwad.mail.auth.MailAuthAccount
+import com.gothwad.mail.auth.MailAuthFailure
+import com.gothwad.mail.auth.broker.DiscoveredAccount
 import com.gothwad.mail.data.model.AppSettingsEntity
 import com.gothwad.mail.data.model.AttachmentItem
 import com.gothwad.mail.data.model.EmailThreadEntity
 import com.gothwad.mail.data.model.MailAccountEntity
 import com.gothwad.mail.data.model.MailFolder
 import com.gothwad.mail.data.model.MeetingSession
+import com.gothwad.mail.data.model.RetentionPolicy
 import com.gothwad.mail.data.model.SwipeAction
 import com.gothwad.mail.data.model.ThemePreference
+import com.gothwad.mail.data.repository.MailMappers
 import com.gothwad.mail.data.repository.MailRepository
+import com.gothwad.mail.data.remote.MailApiException
+import com.gothwad.mail.data.remote.MailAccessTokenProvider
+import com.gothwad.mail.data.remote.sendFailureMessage
+import com.gothwad.mail.ui.state.AuthScreenState
 import com.gothwad.mail.ui.state.BottomNavTab
 import com.gothwad.mail.ui.state.ComposeInitialData
 import com.gothwad.mail.ui.state.MailUiState
 import com.gothwad.mail.ui.state.QuickFilterChip
 import com.gothwad.mail.ui.state.SearchFilterState
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -27,6 +39,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -46,38 +61,83 @@ private data class LocalNavState(
     val selectedLabelFilter: String? = null,
     val activeBottomTab: BottomNavTab = BottomNavTab.MAIL,
     val activeQuickFilters: Set<QuickFilterChip> = emptySet(),
-    val selectedThreadIds: Set<Long> = emptySet(),
-    val activeTabletThreadId: Long? = null,
+    val selectedThreadIds: Set<String> = emptySet(),
+    val activeTabletThreadId: String? = null,
     val isRefreshing: Boolean = false,
     val searchState: SearchFilterState = SearchFilterState(),
-    val meetings: List<MeetingSession> = SeedData.initialMeetings(),
-    val activeMeetingCode: String? = null
+    val searchResults: List<EmailThreadEntity> = emptyList(),
+    val isSearching: Boolean = false,
+    val meetings: List<MeetingSession> = emptyList(),
+    val activeMeetingCode: String? = null,
+    val syncError: String? = null
 )
 
-class MailViewModel(private val repository: MailRepository) : ViewModel() {
+/**
+ * Single source of truth for the Mail UI.
+ *
+ * Everything the screens show comes from Room, scoped to the active Gothwad account. The ViewModel
+ * refreshes Room from the Mail Worker API and forwards user actions back to the API, so the app is
+ * offline-first and account-isolated.
+ */
+class MailViewModel(
+    private val repository: MailRepository,
+    private val auth: GothwadMailAuth,
+    private val tokenProvider: MailAccessTokenProvider,
+) : ViewModel() {
 
     private val localState = MutableStateFlow(LocalNavState())
-    private val _snackbarEvents = MutableSharedFlow<MailSnackbarEvent>()
+    private val _snackbarEvents = MutableSharedFlow<MailSnackbarEvent>(extraBufferCapacity = 8)
     val snackbarEvents: SharedFlow<MailSnackbarEvent> = _snackbarEvents.asSharedFlow()
+
+    private var searchJob: Job? = null
+    private var syncJob: Job? = null
+    private var lastSyncedFolder: MailFolder? = null
+    private var lastSyncedAccount: String? = null
+
+    private val activeAccountFlow: Flow<MailAccountEntity?> = repository.observeActiveAccount()
+
+    /** Threads of the active account only: switching accounts re-subscribes to a new query. */
+    private val activeThreadsFlow: Flow<List<EmailThreadEntity>> = activeAccountFlow
+        .distinctUntilChanged { old, new -> old?.email == new?.email }
+        .flatMapLatest { account ->
+            if (account == null) flowOf(emptyList()) else repository.observeThreadsForAccount(account.email)
+        }
 
     init {
         viewModelScope.launch {
-            repository.ensureSeeded()
+            repository.ensureInitialized()
+            auth.events.collect { event -> handleAuthEvent(event) }
+        }
+        viewModelScope.launch {
+            // Reconcile the signed-in accounts with the local account table on startup.
+            auth.state.collect { state ->
+                if (state is AuthSessionState.SignedIn) {
+                    syncAccountsToCache(state.accounts, state.activeAccount)
+                }
+            }
+        }
+        viewModelScope.launch {
+            activeAccountFlow.distinctUntilChanged { old, new -> old?.email == new?.email }
+                .collect { account ->
+                    if (account != null && lastSyncedAccount != account.email) {
+                        lastSyncedAccount = account.email
+                        refreshCurrentFolder(showSpinner = false)
+                    }
+                }
         }
     }
 
     val uiState: StateFlow<MailUiState> = combine(
-        repository.allThreads,
+        activeThreadsFlow,
         repository.accounts,
         repository.settings,
+        auth.state,
+        auth.discoveredAccounts,
+        auth.sessionManager.failure,
         localState
-    ) { allThreads, accounts, settings, nav ->
+    ) { activeThreads, accounts, settings, authState, discovered, authFailure, nav ->
         val activeAccount = accounts.firstOrNull { it.isActive } ?: accounts.firstOrNull()
-        val accountThreads = if (nav.selectedFolder == MailFolder.ALL_INBOXES || activeAccount == null) {
-            allThreads
-        } else {
-            allThreads.filter { it.accountEmail == activeAccount.email }
-        }
+        val accountThreads = activeThreads
 
         val folderThreads = filterThreadsForFolder(
             threads = accountThreads,
@@ -85,25 +145,30 @@ class MailViewModel(private val repository: MailRepository) : ViewModel() {
             labelFilter = nav.selectedLabelFilter,
             quickFilters = nav.activeQuickFilters
         )
-
         val unreadCounts = computeUnreadCounts(accountThreads)
         val draftCount = accountThreads.count { it.folder == MailFolder.DRAFT }
+        val localSearch = filterForSearch(accountThreads, nav.searchState)
 
-        val searchResults = filterForSearch(
-            threads = allThreads.filter {
-                activeAccount == null || it.accountEmail == activeAccount.email
-            },
-            search = nav.searchState
-        )
+        val dynamicLabels = accountThreads.flatMap { it.labels }.distinct().sorted()
 
-        val dynamicLabels = (listOf("Work", "Design", "Travel", "Receipts", "Personal") +
-            accountThreads.flatMap { it.labels }).distinct().sorted()
+        val screenState = when (authState) {
+            is AuthSessionState.Initializing -> AuthScreenState.LOADING
+            is AuthSessionState.SignedOut -> AuthScreenState.SIGNED_OUT
+            is AuthSessionState.StorageCorrupted -> AuthScreenState.SIGNED_OUT
+            is AuthSessionState.SignedIn -> AuthScreenState.SIGNED_IN
+        }
 
         MailUiState(
-            isLoading = accounts.isEmpty(),
+            isLoading = authState is AuthSessionState.Initializing,
             isRefreshing = nav.isRefreshing,
+            authState = screenState,
+            authFailure = authFailure ?: when (authState) {
+                is AuthSessionState.StorageCorrupted -> MailAuthFailure.StorageUnavailable
+                else -> null
+            },
             activeAccount = activeAccount,
             allAccounts = accounts,
+            discoveredAccounts = discovered,
             settings = settings,
             selectedFolder = nav.selectedFolder,
             selectedLabelFilter = nav.selectedLabelFilter,
@@ -116,9 +181,12 @@ class MailViewModel(private val repository: MailRepository) : ViewModel() {
             selectedThreadIds = nav.selectedThreadIds,
             activeTabletThreadId = nav.activeTabletThreadId,
             searchState = nav.searchState,
-            searchResults = searchResults,
+            searchResults = if (nav.searchResults.isNotEmpty()) nav.searchResults else localSearch,
+            isSearching = nav.isSearching,
             meetings = nav.meetings,
-            activeMeetingCode = nav.activeMeetingCode
+            activeMeetingCode = nav.activeMeetingCode,
+            retention = activeAccount?.retention ?: RetentionPolicy.KEEP_500,
+            syncError = nav.syncError
         )
     }.stateIn(
         scope = viewModelScope,
@@ -126,7 +194,125 @@ class MailViewModel(private val repository: MailRepository) : ViewModel() {
         initialValue = MailUiState()
     )
 
-    fun observeThread(threadId: Long): Flow<EmailThreadEntity?> = repository.observeThread(threadId)
+    // --- Auth ---------------------------------------------------------------
+
+    private suspend fun handleAuthEvent(event: AuthEvent) {
+        when (event) {
+            is AuthEvent.SignedIn -> {
+                repository.activeAccount()?.let { refreshCurrentFolder(showSpinner = true) }
+                _snackbarEvents.emit(MailSnackbarEvent.SimpleMessage("Signed in as ${event.account.username}"))
+            }
+            is AuthEvent.SignedOut -> {
+                repository.removeAccount(event.account?.email ?: return)
+                lastSyncedAccount = null
+                _snackbarEvents.emit(MailSnackbarEvent.SimpleMessage(describeSignOut(event.outcome)))
+            }
+            AuthEvent.LoginCancelled -> _snackbarEvents.emit(
+                MailSnackbarEvent.SimpleMessage("Sign-in was cancelled"),
+            )
+            AuthEvent.BrowserUnavailable -> _snackbarEvents.emit(
+                MailSnackbarEvent.SimpleMessage("No browser is available to sign in"),
+            )
+            is AuthEvent.Failed -> _snackbarEvents.emit(
+                MailSnackbarEvent.SimpleMessage(describeFailure(event.failure)),
+            )
+        }
+    }
+
+    private fun describeSignOut(outcome: com.gothwad.mail.auth.DisconnectOutcome): String = when (outcome) {
+        com.gothwad.mail.auth.DisconnectOutcome.RevokedOnServer -> "Signed out and disconnected on the server"
+        com.gothwad.mail.auth.DisconnectOutcome.AlreadyInvalidOnServer -> "Signed out; the grant was already invalid"
+        com.gothwad.mail.auth.DisconnectOutcome.OfflineRemovedLocally ->
+            "Signed out on this device; the server grant could not be confirmed"
+        com.gothwad.mail.auth.DisconnectOutcome.LocalOnly -> "Signed out of Gothwad Mail"
+    }
+
+    private fun describeFailure(failure: MailAuthFailure): String = when (failure) {
+        MailAuthFailure.BrowserUnavailable -> "No browser is available to sign in"
+        MailAuthFailure.InvalidCallback -> "The sign-in response was invalid. Try again."
+        MailAuthFailure.LoginCancelled -> "Sign-in was cancelled"
+        MailAuthFailure.SessionExpired -> "Your Gothwad Account session expired. Sign in again."
+        MailAuthFailure.StorageUnavailable -> "Encrypted account storage is unavailable"
+        MailAuthFailure.Unavailable -> "Could not reach Gothwad Accounts"
+    }
+
+    private suspend fun syncAccountsToCache(accounts: List<MailAuthAccount>, active: MailAuthAccount?) {
+        accounts.forEach { account ->
+            val existing = repository.accountsSnapshot().find { it.email == account.email }
+            repository.upsertAccount(
+                MailMappers.toAccount(
+                    com.gothwad.mail.auth.GothwadUserInfo(
+                        userId = account.userId,
+                        username = account.username,
+                        name = account.displayName,
+                        email = account.email,
+                        picture = account.avatarUrl,
+                    ),
+                    existing = existing,
+                    active = account.userId == (active?.userId ?: account.userId),
+                ),
+            )
+        }
+        // Drop cached rows for accounts that no longer exist in the encrypted store.
+        val known = accounts.map { it.email }.toSet()
+        repository.accountsSnapshot().forEach { cached ->
+            if (cached.email !in known) repository.removeAccount(cached.email)
+        }
+        active?.let { repository.switchAccount(it.email) }
+    }
+
+    /** Starts the interactive Gothwad Accounts sign-in from the signed-out screen. */
+    fun signIn(activity: android.app.Activity, chooseAccount: Boolean = false) {
+        auth.signIn(activity, chooseAccount = chooseAccount)
+    }
+
+    /** One-tap sign-in for an account discovered on this device. */
+    fun signInAsDiscovered(activity: android.app.Activity, discovered: DiscoveredAccount) {
+        auth.signInAsDiscovered(activity, discovered)
+    }
+
+    fun openAccountManager(activity: android.app.Activity) = auth.openAccountManager(activity)
+
+    fun refreshDiscoveredAccounts() = auth.refreshDiscoveredAccounts()
+
+    fun clearAuthFailure() = auth.sessionManager.clearFailure()
+
+    fun signOutOfMail(account: MailAccountEntity) {
+        viewModelScope.launch {
+            val authAccount = auth.sessionManager.accounts().find { it.email == account.email }
+            if (authAccount == null) {
+                repository.removeAccount(account.email)
+            } else {
+                auth.signOutOfMail(authAccount)
+            }
+        }
+    }
+
+    fun disconnectFromServer(account: MailAccountEntity) {
+        viewModelScope.launch {
+            val authAccount = auth.sessionManager.accounts().find { it.email == account.email }
+            if (authAccount == null) {
+                repository.removeAccount(account.email)
+            } else {
+                auth.disconnectFromServer(authAccount)
+            }
+        }
+    }
+
+    fun removeAccountFromDevice(account: MailAccountEntity) {
+        viewModelScope.launch {
+            val authAccount = auth.sessionManager.accounts().find { it.email == account.email }
+            if (authAccount == null) {
+                repository.removeAccount(account.email)
+            } else {
+                auth.removeAccountFromDevice(authAccount)
+            }
+        }
+    }
+
+    // --- Navigation ---------------------------------------------------------
+
+    fun observeThread(threadId: String): Flow<EmailThreadEntity?> = repository.observeThread(threadId)
 
     fun selectFolder(folder: MailFolder) {
         localState.update {
@@ -138,6 +324,7 @@ class MailViewModel(private val repository: MailRepository) : ViewModel() {
                 activeQuickFilters = emptySet()
             )
         }
+        refreshCurrentFolder(showSpinner = true)
     }
 
     fun selectLabel(label: String) {
@@ -166,25 +353,52 @@ class MailViewModel(private val repository: MailRepository) : ViewModel() {
         }
     }
 
-    fun selectTabletThread(threadId: Long?) {
+    fun selectTabletThread(threadId: String?) {
         localState.update { it.copy(activeTabletThreadId = threadId) }
         if (threadId != null) {
-            markThreadRead(threadId, true)
+            openThread(threadId)
         }
     }
 
+    fun clearTabletThread() {
+        localState.update { it.copy(activeTabletThreadId = null) }
+    }
+
+    // --- Sync ---------------------------------------------------------------
+
+    /** Pull-to-refresh and manual retry entry point. */
     fun refreshInbox() {
-        val activeEmail = uiState.value.activeAccount?.email ?: SeedData.PRIMARY_EMAIL
-        viewModelScope.launch {
-            localState.update { it.copy(isRefreshing = true) }
-            delay(650)
-            repository.simulateIncomingMail(activeEmail)
-            localState.update { it.copy(isRefreshing = false) }
-            _snackbarEvents.emit(MailSnackbarEvent.SimpleMessage("Inbox synced"))
+        refreshCurrentFolder(showSpinner = true)
+    }
+
+    fun refreshCurrentFolder(showSpinner: Boolean = false) {
+        val account = uiState.value.activeAccount ?: repository.activeAccount() ?: return
+        val folder = localState.value.selectedFolder
+        syncJob?.cancel()
+        syncJob = viewModelScope.launch {
+            if (showSpinner) localState.update { it.copy(isRefreshing = true) }
+            try {
+                repository.refreshCurrentFolder(account, folder)
+                lastSyncedFolder = folder
+                auth.refreshDiscoveredAccounts()
+                localState.update { it.copy(syncError = null) }
+            } catch (error: MailApiException) {
+                if (error.isUnauthenticated) {
+                    localState.update { it.copy(syncError = "Your Gothwad Account session expired") }
+                } else {
+                    localState.update { it.copy(syncError = "Could not sync Gothwad Mail") }
+                }
+            } catch (error: Exception) {
+                localState.update { it.copy(syncError = "Could not sync Gothwad Mail") }
+            } finally {
+                if (showSpinner) localState.update { it.copy(isRefreshing = false) }
+            }
         }
     }
 
-    fun toggleThreadSelection(threadId: Long) {
+    // --- Selection ----------------------------------------------------------
+
+    fun toggleThreadSelection(threadId: String) {
         localState.update { state ->
             val updated = if (threadId in state.selectedThreadIds) {
                 state.selectedThreadIds - threadId
@@ -204,20 +418,36 @@ class MailViewModel(private val repository: MailRepository) : ViewModel() {
         localState.update { it.copy(selectedThreadIds = visibleIds) }
     }
 
-    fun markThreadRead(threadId: Long, isRead: Boolean) {
+    // --- Thread actions -----------------------------------------------------
+
+    /** Opens a thread: marks it read and downloads the body on first open. */
+    fun openThread(threadId: String) {
         viewModelScope.launch {
-            repository.markThreadsRead(listOf(threadId), isRead)
+            val account = uiState.value.activeAccount ?: return@launch
+            val thread = repository.getThread(threadId) ?: return@launch
+            runCatching { repository.openThread(account, thread) }
+                .onFailure { _snackbarEvents.emit(MailSnackbarEvent.SimpleMessage("Could not open this message")) }
+        }
+    }
+
+    fun markThreadRead(threadId: String, isRead: Boolean) {
+        viewModelScope.launch {
+            val account = uiState.value.activeAccount ?: return@launch
+            val thread = repository.getThread(threadId) ?: return@launch
+            runCatching { repository.markRead(account, listOf(thread), isRead) }
         }
     }
 
     fun markSelectedRead(isRead: Boolean) {
-        val ids = localState.value.selectedThreadIds.toList()
+        val selected = uiState.value.visibleThreads.filter { it.id in localState.value.selectedThreadIds }
         localState.update { it.copy(selectedThreadIds = emptySet()) }
+        if (selected.isEmpty()) return
         viewModelScope.launch {
-            repository.markThreadsRead(ids, isRead)
+            val account = uiState.value.activeAccount ?: return@launch
+            runCatching { repository.markRead(account, selected, isRead) }
             _snackbarEvents.emit(
                 MailSnackbarEvent.SimpleMessage(
-                    if (isRead) "${ids.size} marked as read" else "${ids.size} marked as unread"
+                    if (isRead) "${selected.size} marked as read" else "${selected.size} marked as unread"
                 )
             )
         }
@@ -225,13 +455,15 @@ class MailViewModel(private val repository: MailRepository) : ViewModel() {
 
     fun toggleStar(thread: EmailThreadEntity) {
         viewModelScope.launch {
-            repository.toggleStar(thread)
+            val account = uiState.value.activeAccount ?: return@launch
+            runCatching { repository.toggleStar(account, thread) }
         }
     }
 
     fun toggleImportant(thread: EmailThreadEntity) {
         viewModelScope.launch {
-            repository.toggleImportant(thread)
+            val account = uiState.value.activeAccount ?: return@launch
+            runCatching { repository.toggleImportant(account, thread) }
         }
     }
 
@@ -241,8 +473,9 @@ class MailViewModel(private val repository: MailRepository) : ViewModel() {
                 SwipeAction.ARCHIVE -> archiveThreads(listOf(thread))
                 SwipeAction.DELETE -> trashThreads(listOf(thread))
                 SwipeAction.MARK_READ -> {
+                    val account = uiState.value.activeAccount ?: return@launch
                     val nextRead = !thread.isRead
-                    repository.markThreadsRead(listOf(thread.id), nextRead)
+                    runCatching { repository.markRead(account, listOf(thread), nextRead) }
                     _snackbarEvents.emit(
                         MailSnackbarEvent.SimpleMessage(
                             if (nextRead) "Marked as read" else "Marked as unread"
@@ -253,6 +486,10 @@ class MailViewModel(private val repository: MailRepository) : ViewModel() {
         }
     }
 
+    /**
+     * The Worker has no archive mailbox: archiving moves the message out of the inbox, which is the
+     * same server operation as moving it to Trash.
+     */
     fun archiveSelected() {
         val selected = uiState.value.visibleThreads.filter { it.id in localState.value.selectedThreadIds }
         localState.update { it.copy(selectedThreadIds = emptySet()) }
@@ -260,19 +497,7 @@ class MailViewModel(private val repository: MailRepository) : ViewModel() {
     }
 
     fun archiveThreads(threads: List<EmailThreadEntity>) {
-        if (threads.isEmpty()) return
-        viewModelScope.launch {
-            repository.archiveThreads(threads)
-            if (localState.value.activeTabletThreadId in threads.map { it.id }) {
-                localState.update { it.copy(activeTabletThreadId = null) }
-            }
-            _snackbarEvents.emit(
-                MailSnackbarEvent.MessageWithUndo(
-                    message = if (threads.size == 1) "Archived" else "${threads.size} archived",
-                    affectedThreads = threads
-                )
-            )
-        }
+        trashThreads(threads, reason = "Archived")
     }
 
     fun trashSelected() {
@@ -281,18 +506,20 @@ class MailViewModel(private val repository: MailRepository) : ViewModel() {
         trashThreads(selected)
     }
 
-    fun trashThreads(threads: List<EmailThreadEntity>) {
+    fun trashThreads(threads: List<EmailThreadEntity>, reason: String? = null) {
         if (threads.isEmpty()) return
         viewModelScope.launch {
+            val account = uiState.value.activeAccount ?: return@launch
             val inTrash = threads.all { it.folder == MailFolder.TRASH }
             if (inTrash) {
-                repository.deleteForever(threads.map { it.id })
+                runCatching { repository.deleteForever(account, threads) }
                 _snackbarEvents.emit(MailSnackbarEvent.SimpleMessage("Deleted forever"))
             } else {
-                repository.moveThreadsToTrash(threads)
+                runCatching { repository.moveToTrash(account, threads) }
                 _snackbarEvents.emit(
                     MailSnackbarEvent.MessageWithUndo(
-                        message = if (threads.size == 1) "Moved to Trash" else "${threads.size} moved to Trash",
+                        message = reason
+                            ?: if (threads.size == 1) "Moved to Trash" else "${threads.size} moved to Trash",
                         affectedThreads = threads
                     )
                 )
@@ -303,65 +530,80 @@ class MailViewModel(private val repository: MailRepository) : ViewModel() {
         }
     }
 
+    /** Undo for a swipe or toolbar delete: restores the messages to their previous folder. */
     fun undoFolderMove(threads: List<EmailThreadEntity>) {
+        if (threads.isEmpty()) return
         viewModelScope.launch {
-            repository.restoreThreads(threads)
+            val account = uiState.value.activeAccount ?: return@launch
+            runCatching { repository.restoreFromTrash(account, threads) }
         }
     }
 
     fun reportSpam(thread: EmailThreadEntity) {
         viewModelScope.launch {
-            repository.moveThreadsToSpam(listOf(thread))
+            val account = uiState.value.activeAccount ?: return@launch
+            runCatching { repository.moveToTrash(account, listOf(thread)) }
             _snackbarEvents.emit(MailSnackbarEvent.SimpleMessage("Reported as spam"))
         }
     }
 
     fun moveThreadToFolder(thread: EmailThreadEntity, folder: MailFolder) {
+        if (folder == MailFolder.TRASH) {
+            trashThreads(listOf(thread))
+            return
+        }
         viewModelScope.launch {
-            repository.moveThreadToFolder(thread, folder)
+            val account = uiState.value.activeAccount ?: return@launch
+            runCatching { repository.restoreFromTrash(account, listOf(thread)) }
             _snackbarEvents.emit(MailSnackbarEvent.SimpleMessage("Moved to ${folder.displayName}"))
         }
     }
 
     fun snoozeThread(thread: EmailThreadEntity, untilLabel: String) {
-        viewModelScope.launch {
-            repository.snoozeThread(thread, untilLabel)
-            _snackbarEvents.emit(MailSnackbarEvent.SimpleMessage("Snoozed until $untilLabel"))
-        }
+        _snackbarEvents.tryEmit(
+            MailSnackbarEvent.SimpleMessage("Snooze is not available for Gothwad Mail yet — $untilLabel"),
+        )
     }
 
     fun updateLabels(thread: EmailThreadEntity, labels: List<String>) {
+        _snackbarEvents.tryEmit(MailSnackbarEvent.SimpleMessage("Labels are not available for Gothwad Mail yet"))
+    }
+
+    /** `DELETE /api/mail/trash` for the active account. */
+    fun emptyCurrentFolder() {
+        val state = uiState.value
+        if (state.selectedFolder != MailFolder.TRASH) return
+        val account = state.activeAccount ?: return
         viewModelScope.launch {
-            repository.updateThreadLabels(thread, labels)
+            val deleted = runCatching { repository.emptyTrash(account) }.getOrElse { error ->
+                _snackbarEvents.emit(MailSnackbarEvent.SimpleMessage("Could not empty Trash"))
+                return@launch
+            }
+            _snackbarEvents.emit(MailSnackbarEvent.SimpleMessage("Trash emptied ($deleted messages)"))
         }
     }
 
-    fun emptyCurrentFolder() {
-        val state = uiState.value
-        val account = state.activeAccount?.email ?: return
-        if (state.selectedFolder != MailFolder.TRASH && state.selectedFolder != MailFolder.SPAM) return
-        viewModelScope.launch {
-            repository.emptyFolder(state.selectedFolder, account)
-            _snackbarEvents.emit(
-                MailSnackbarEvent.SimpleMessage("${state.selectedFolder.displayName} emptied")
-            )
-        }
-    }
+    // --- Accounts & settings -----------------------------------------------
 
     fun switchAccount(email: String) {
         viewModelScope.launch {
+            val target = repository.accountsSnapshot().find { it.email == email } ?: return@launch
+            val userId = auth.sessionManager.accounts().find { it.email == email }?.userId
+            if (userId != null) auth.sessionManager.switchTo(userId)
             repository.switchAccount(email)
+            lastSyncedAccount = email
             localState.update { it.copy(selectedThreadIds = emptySet(), activeTabletThreadId = null) }
+            refreshCurrentFolder(showSpinner = true)
+            _snackbarEvents.emit(MailSnackbarEvent.SimpleMessage("Switched to ${target.displayName}"))
         }
     }
 
-    fun addAccount(displayName: String, email: String) {
-        if (displayName.isBlank() || email.isBlank()) return
-        val palette = listOf(0xFF0B57D0, 0xFF7B1FA2, 0xFF00838F, 0xFFD84315, 0xFF146C2E)
-        viewModelScope.launch {
-            repository.addAccount(displayName, email, palette.random())
-            _snackbarEvents.emit(MailSnackbarEvent.SimpleMessage("Switched to $email"))
-        }
+    /**
+     * "Add another account" always goes through Gothwad Accounts. There is no local text-field
+     * account form: a Mail account exists only with a real OAuth grant.
+     */
+    fun addAccount(activity: android.app.Activity) {
+        auth.signIn(activity, chooseAccount = true)
     }
 
     fun updateAccountSettings(account: MailAccountEntity) {
@@ -371,10 +613,22 @@ class MailViewModel(private val repository: MailRepository) : ViewModel() {
         }
     }
 
-    fun updateSettings(settings: AppSettingsEntity) {
+    fun updateRetention(policy: RetentionPolicy) {
+        val account = uiState.value.activeAccount ?: return
         viewModelScope.launch {
-            repository.updateSettings(settings)
+            val result = runCatching { repository.updateRetention(account, policy) }
+            result.onSuccess {
+                _snackbarEvents.emit(
+                    MailSnackbarEvent.SimpleMessage("Mailbox retention set to ${policy.label.lowercase()}"),
+                )
+            }.onFailure {
+                _snackbarEvents.emit(MailSnackbarEvent.SimpleMessage("Could not update mailbox retention"))
+            }
         }
+    }
+
+    fun updateSettings(settings: AppSettingsEntity) {
+        viewModelScope.launch { repository.updateSettings(settings) }
     }
 
     fun updateTheme(themePreference: ThemePreference) {
@@ -382,9 +636,42 @@ class MailViewModel(private val repository: MailRepository) : ViewModel() {
         updateSettings(current.copy(themePreference = themePreference))
     }
 
-    // Search
+    // --- Search -------------------------------------------------------------
+
     fun updateSearchQuery(query: String) {
         localState.update { it.copy(searchState = it.searchState.copy(query = query)) }
+        scheduleServerSearch()
+    }
+
+    /** Debounced server search merged with the instant local filter. */
+    private fun scheduleServerSearch() {
+        searchJob?.cancel()
+        val snapshot = localState.value
+        val query = snapshot.searchState.query.trim()
+        val filters = snapshot.searchState
+        if (query.isEmpty() && !filters.onlyUnread && !filters.onlyStarred && !filters.onlyHasAttachment) {
+            localState.update { it.copy(searchResults = emptyList(), isSearching = false) }
+            return
+        }
+        searchJob = viewModelScope.launch {
+            localState.update { it.copy(isSearching = true) }
+            delay(SEARCH_DEBOUNCE_MILLIS)
+            val account = uiState.value.activeAccount ?: return@launch
+            runCatching {
+                repository.search(
+                    account = account,
+                    query = query,
+                    folder = if (filters.onlySentByMe) MailFolder.SENT else MailFolder.ALL_MAIL,
+                    unreadOnly = filters.onlyUnread,
+                    starredOnly = filters.onlyStarred,
+                    hasAttachment = filters.onlyHasAttachment,
+                )
+            }.onSuccess { results ->
+                localState.update { it.copy(searchResults = results, isSearching = false) }
+            }.onFailure {
+                localState.update { it.copy(searchResults = emptyList(), isSearching = false) }
+            }
+        }
     }
 
     fun commitSearchHistory(query: String) {
@@ -417,20 +704,29 @@ class MailViewModel(private val repository: MailRepository) : ViewModel() {
                 )
             )
         }
+        scheduleServerSearch()
     }
 
     fun resetSearch() {
+        searchJob?.cancel()
         localState.update { state ->
             state.copy(
-                searchState = SearchFilterState(recentSearches = state.searchState.recentSearches)
+                searchState = SearchFilterState(recentSearches = state.searchState.recentSearches),
+                searchResults = emptyList(),
+                isSearching = false
             )
         }
     }
 
-    // Compose / Reply / Forward
+    // --- Compose ------------------------------------------------------------
+
+    /**
+     * Sends through the Worker. `draftId` and `replyToThreadId` carry the server message ids, so the
+     * server consumes the exact draft the user edited.
+     */
     fun sendOrScheduleEmail(
-        draftId: Long?,
-        replyToThreadId: Long?,
+        draftId: String?,
+        replyToThreadId: String?,
         fromAccount: MailAccountEntity,
         to: List<String>,
         cc: List<String>,
@@ -441,28 +737,42 @@ class MailViewModel(private val repository: MailRepository) : ViewModel() {
         scheduledForMillis: Long?
     ) {
         viewModelScope.launch {
-            repository.sendOrScheduleEmail(
-                existingDraftId = draftId,
-                replyToThreadId = replyToThreadId,
-                senderAccount = fromAccount,
-                recipientsTo = to,
-                recipientsCc = cc,
-                subject = subject,
-                body = body,
-                attachments = attachments,
-                isConfidential = isConfidential,
-                scheduledForMillis = scheduledForMillis
-            )
-            _snackbarEvents.emit(
-                MailSnackbarEvent.SimpleMessage(
-                    if (scheduledForMillis != null) "Email scheduled" else "Message sent"
+            if (scheduledForMillis != null) {
+                _snackbarEvents.emit(
+                    MailSnackbarEvent.SimpleMessage("Scheduled send is not available for Gothwad Mail yet"),
                 )
-            )
+                return@launch
+            }
+            if (to.isEmpty()) {
+                _snackbarEvents.emit(MailSnackbarEvent.SimpleMessage("Add at least one recipient"))
+                return@launch
+            }
+            val result = runCatching {
+                repository.send(
+                    account = fromAccount,
+                    to = to,
+                    cc = cc,
+                    subject = subject,
+                    body = body,
+                    draftId = draftId,
+                )
+            }
+            result.onSuccess { sendResult ->
+                val remaining = sendResult.remainingToday
+                _snackbarEvents.emit(
+                    MailSnackbarEvent.SimpleMessage(
+                        if (remaining != null) "Message sent — $remaining remaining today" else "Message sent",
+                    ),
+                )
+            }.onFailure { error ->
+                _snackbarEvents.emit(MailSnackbarEvent.SimpleMessage(sendFailureMessage(error)))
+            }
         }
     }
 
+    /** Auto-save: persists the draft on the server so it survives reinstalls. */
     fun saveDraft(
-        draftId: Long?,
+        draftId: String?,
         fromAccount: MailAccountEntity,
         to: List<String>,
         cc: List<String>,
@@ -472,8 +782,25 @@ class MailViewModel(private val repository: MailRepository) : ViewModel() {
     ) {
         if (to.isEmpty() && subject.isBlank() && body.isBlank() && attachments.isEmpty()) return
         viewModelScope.launch {
-            repository.saveDraft(draftId, fromAccount, to, cc, subject, body, attachments)
-            _snackbarEvents.emit(MailSnackbarEvent.SimpleMessage("Draft saved"))
+            runCatching {
+                repository.saveDraft(
+                    account = fromAccount,
+                    serverDraftId = draftId,
+                    to = to,
+                    cc = cc,
+                    subject = subject,
+                    body = body,
+                )
+            }.onFailure {
+                _snackbarEvents.emit(MailSnackbarEvent.SimpleMessage("Could not save the draft on the server"))
+            }
+        }
+    }
+
+    fun deleteDraft(thread: EmailThreadEntity) {
+        viewModelScope.launch {
+            val account = uiState.value.activeAccount ?: return@launch
+            runCatching { repository.deleteDraft(account, thread) }
         }
     }
 
@@ -483,7 +810,7 @@ class MailViewModel(private val repository: MailRepository) : ViewModel() {
         forward: Boolean
     ): ComposeInitialData {
         val lastMessage = thread.messages.lastOrNull()
-        val activeEmail = uiState.value.activeAccount?.email ?: SeedData.PRIMARY_EMAIL
+        val activeEmail = uiState.value.activeAccount?.email.orEmpty()
         val prefix = if (forward) "Fwd: " else "Re: "
         val subject = if (thread.subject.startsWith(prefix, ignoreCase = true)) {
             thread.subject
@@ -532,12 +859,13 @@ class MailViewModel(private val repository: MailRepository) : ViewModel() {
             initialTo = msg?.recipientsTo ?: emptyList(),
             initialCc = msg?.recipientsCc ?: emptyList(),
             initialSubject = if (thread.subject == "(no subject)") "" else thread.subject,
-            initialBody = msg?.body ?: "",
+            initialBody = thread.bodyText.ifBlank { msg?.body.orEmpty() },
             initialAttachments = msg?.attachments ?: emptyList()
         )
     }
 
-    // Meet Actions
+    // --- Meet ---------------------------------------------------------------
+
     fun createNewMeeting(): String {
         val chars = "abcdefghijkmnpqrstuvwxyz"
         val seg1 = (1..3).map { chars.random() }.joinToString("")
@@ -570,6 +898,8 @@ class MailViewModel(private val repository: MailRepository) : ViewModel() {
     fun leaveMeeting() {
         localState.update { it.copy(activeMeetingCode = null) }
     }
+
+    // --- Filtering ----------------------------------------------------------
 
     private fun filterThreadsForFolder(
         threads: List<EmailThreadEntity>,
@@ -633,6 +963,7 @@ class MailViewModel(private val repository: MailRepository) : ViewModel() {
                 thread.primarySenderName.contains(q, ignoreCase = true) ||
                 thread.primarySenderEmail.contains(q, ignoreCase = true) ||
                 thread.snippet.contains(q, ignoreCase = true) ||
+                thread.bodyText.contains(q, ignoreCase = true) ||
                 thread.messages.any { it.body.contains(q, ignoreCase = true) }
 
             val unreadOk = !search.onlyUnread || !thread.isRead
@@ -643,10 +974,18 @@ class MailViewModel(private val repository: MailRepository) : ViewModel() {
         }
     }
 
-    class Factory(private val repository: MailRepository) : ViewModelProvider.Factory {
+    class Factory(
+        private val repository: MailRepository,
+        private val auth: GothwadMailAuth,
+        private val tokenProvider: MailAccessTokenProvider
+    ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return MailViewModel(repository) as T
+            return MailViewModel(repository, auth, tokenProvider) as T
         }
+    }
+
+    companion object {
+        const val SEARCH_DEBOUNCE_MILLIS: Long = 350L
     }
 }

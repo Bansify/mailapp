@@ -15,23 +15,15 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CloudQueue
 import androidx.compose.material.icons.rounded.PersonAddAlt1
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.gothwad.mail.auth.broker.DiscoveredAccount
 import com.gothwad.mail.data.model.MailAccountEntity
 
 @Composable
@@ -48,10 +41,15 @@ fun AccountSwitcherDialog(
     allAccounts: List<MailAccountEntity>,
     onDismiss: () -> Unit,
     onSelectAccount: (String) -> Unit,
-    onAddAccount: (displayName: String, email: String) -> Unit,
-    onOpenSettings: () -> Unit
+    /** Opens Gothwad Accounts with `choose=1` so the user can authorize another account. */
+    onAddAccount: () -> Unit,
+    onOpenSettings: () -> Unit,
+    /** Opens `com.gothwad.accounts` or the Accounts web page. */
+    onManageAccount: () -> Unit,
+    /** Accounts discovered on this device through verified sibling Gothwad apps. */
+    discoveredAccounts: List<DiscoveredAccount> = emptyList(),
+    onContinueAsDiscovered: (DiscoveredAccount) -> Unit = {}
 ) {
-    var showAddForm by remember { mutableStateOf(false) }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -76,7 +74,7 @@ fun AccountSwitcherDialog(
                     }
                     Spacer(modifier = Modifier.weight(1f))
                     Text(
-                        text = "MailApp",
+                        text = "Gothwad Mail",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -125,14 +123,14 @@ fun AccountSwitcherDialog(
                             OutlinedButton(
                                 onClick = {
                                     onDismiss()
-                                    onOpenSettings()
+                                    onManageAccount()
                                 },
                                 shape = RoundedCornerShape(20.dp),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .testTag("manage_account_button")
                             ) {
-                                Text("Manage your MailApp Account")
+                                Text("Manage your Gothwad Account")
                             }
 
                             Spacer(modifier = Modifier.height(12.dp))
@@ -149,9 +147,8 @@ fun AccountSwitcherDialog(
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column(modifier = Modifier.weight(1f)) {
-                                    val progress = (activeAccount.usedStorageGb / activeAccount.totalStorageGb).coerceIn(0f, 1f)
                                     LinearProgressIndicator(
-                                        progress = { progress },
+                                        progress = { activeAccount.storageProgress },
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .height(5.dp)
@@ -159,7 +156,8 @@ fun AccountSwitcherDialog(
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = "${activeAccount.usedStorageGb} GB of ${activeAccount.totalStorageGb.toInt()} GB used",
+                                        text = "${activeAccount.usedStorageLabel} of ${activeAccount.totalStorageLabel} used · " +
+                                            "${activeAccount.retention.label}",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -207,6 +205,63 @@ fun AccountSwitcherDialog(
                     }
                 }
 
+                // Accounts found on this device in other verified Gothwad apps.
+                val availableDiscovered = discoveredAccounts.filterNot { discovered ->
+                    allAccounts.any {
+                        it.username.equals(discovered.username.orEmpty(), ignoreCase = true) ||
+                            it.email.equals(discovered.email.orEmpty(), ignoreCase = true)
+                    }
+                }
+                if (availableDiscovered.isNotEmpty()) {
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+                    Text(
+                        text = "Available on this device",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(start = 24.dp, top = 10.dp, bottom = 2.dp)
+                    )
+                    availableDiscovered.forEach { discovered ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onDismiss()
+                                    onContinueAsDiscovered(discovered)
+                                }
+                                .testTag("discovered_switch_${discovered.username ?: discovered.userId}")
+                                .padding(horizontal = 24.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            SenderAvatar(
+                                name = discovered.displayName,
+                                colorHex = com.gothwad.mail.data.repository.MailMappers.avatarColor(
+                                    discovered.mailboxAddress
+                                ),
+                                size = 32.dp
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Continue as ${discovered.displayName}",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = discovered.mailboxAddress,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = 8.dp),
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
@@ -215,7 +270,10 @@ fun AccountSwitcherDialog(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { showAddForm = true }
+                        .clickable {
+                            onDismiss()
+                            onAddAccount()
+                        }
                         .testTag("add_another_account_row")
                         .padding(horizontal = 24.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -238,7 +296,7 @@ fun AccountSwitcherDialog(
                         .fillMaxWidth()
                         .clickable {
                             onDismiss()
-                            onOpenSettings()
+                            onManageAccount()
                         }
                         .padding(horizontal = 24.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -251,65 +309,11 @@ fun AccountSwitcherDialog(
                     )
                     Spacer(modifier = Modifier.width(14.dp))
                     Text(
-                        text = "Manage accounts on this device",
+                        text = "Manage your Gothwad Account",
                         style = MaterialTheme.typography.titleSmall
                     )
                 }
             }
         }
-    }
-
-    if (showAddForm) {
-        var name by remember { mutableStateOf("") }
-        var email by remember { mutableStateOf("") }
-        var error by remember { mutableStateOf<String?>(null) }
-
-        AlertDialog(
-            onDismissRequest = { showAddForm = false },
-            title = { Text("Add mail account") },
-            text = {
-                Column {
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        label = { Text("Display name") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = {
-                            email = it
-                            error = null
-                        },
-                        label = { Text("Email address") },
-                        placeholder = { Text("name@example.com") },
-                        singleLine = true,
-                        isError = error != null,
-                        supportingText = error?.let { { Text(it) } },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Button(onClick = {
-                    if (!email.contains("@") || !email.contains(".")) {
-                        error = "Enter a valid email address"
-                    } else {
-                        onAddAccount(name.ifBlank { email.substringBefore("@") }, email)
-                        showAddForm = false
-                        onDismiss()
-                    }
-                }) {
-                    Text("Add account")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddForm = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
     }
 }

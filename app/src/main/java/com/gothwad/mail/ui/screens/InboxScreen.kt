@@ -87,6 +87,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.gothwad.mail.R
+import com.gothwad.mail.auth.broker.DiscoveredAccount
 import com.gothwad.mail.data.model.AttachmentItem
 import com.gothwad.mail.data.model.EmailThreadEntity
 import com.gothwad.mail.data.model.MailFolder
@@ -114,9 +115,9 @@ fun InboxScreen(
     onToggleQuickFilter: (QuickFilterChip) -> Unit,
     onRefresh: () -> Unit,
     onOpenThread: (EmailThreadEntity) -> Unit,
-    onSelectTabletThread: (Long?) -> Unit,
+    onSelectTabletThread: (String?) -> Unit,
     onEditDraft: (EmailThreadEntity) -> Unit,
-    onToggleSelection: (Long) -> Unit,
+    onToggleSelection: (String) -> Unit,
     onClearSelection: () -> Unit,
     onSelectAll: () -> Unit,
     onArchiveSelected: () -> Unit,
@@ -142,7 +143,9 @@ fun InboxScreen(
     onOpenSearch: () -> Unit,
     onOpenSettings: () -> Unit,
     onSwitchAccount: (String) -> Unit,
-    onAddAccount: (String, String) -> Unit,
+    onAddAccount: () -> Unit,
+    onManageAccount: () -> Unit,
+    onContinueAsDiscovered: (DiscoveredAccount) -> Unit,
     onCreateMeeting: () -> String,
     onJoinMeeting: (String) -> Unit,
     onLeaveMeeting: () -> Unit
@@ -621,7 +624,10 @@ fun InboxScreen(
             onDismiss = { showAccountDialog = false },
             onSelectAccount = onSwitchAccount,
             onAddAccount = onAddAccount,
-            onOpenSettings = onOpenSettings
+            onOpenSettings = onOpenSettings,
+            onManageAccount = onManageAccount,
+            discoveredAccounts = uiState.discoveredAccounts,
+            onContinueAsDiscovered = onContinueAsDiscovered
         )
     }
 

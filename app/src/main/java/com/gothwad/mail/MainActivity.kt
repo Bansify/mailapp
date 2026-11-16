@@ -14,7 +14,8 @@ import com.gothwad.mail.ui.viewmodel.MailViewModel
 class MainActivity : ComponentActivity() {
 
     private val viewModel: MailViewModel by viewModels {
-        MailViewModel.Factory((application as MailApplication).repository)
+        val app = application as MailApplication
+        MailViewModel.Factory(app.repository, app.auth, app.auth)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
