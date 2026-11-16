@@ -7,15 +7,16 @@ import android.content.Intent
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
 import com.gothwad.mail.BuildConfig
+import com.gothwad.mail.auth.broker.AccountDirectoryProvider
 import com.gothwad.mail.auth.broker.AndroidPeerDirectoryTransport
 import com.gothwad.mail.auth.broker.BrokerPolicy
 import com.gothwad.mail.auth.broker.BrokerTrustPolicy
 import com.gothwad.mail.auth.broker.DirectorySnapshot
+import com.gothwad.mail.auth.broker.DirectoryHost
 import com.gothwad.mail.auth.broker.DiscoveredAccount
 import com.gothwad.mail.auth.broker.KnownGothwadApps
 import com.gothwad.mail.auth.broker.PeerBrokerClient
 import com.gothwad.mail.data.remote.MailAccessTokenProvider
-import com.gothwad.mail.data.remote.MailApiClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -255,6 +256,4 @@ class GothwadMailAuth(
 
     /** True when at least one account can produce a token right now. */
     suspend fun hasUsableSession(): Boolean = accessToken() != null
-
-}
 }

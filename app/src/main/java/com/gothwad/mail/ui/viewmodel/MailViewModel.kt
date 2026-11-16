@@ -385,7 +385,7 @@ class MailViewModel(
     }
 
     fun refreshCurrentFolder(showSpinner: Boolean = false) {
-        val account = uiState.value.activeAccount ?: repository.activeAccount() ?: return
+        val account = uiState.value.activeAccount ?: return
         val folder = localState.value.selectedFolder
         syncJob?.cancel()
         syncJob = viewModelScope.launch {

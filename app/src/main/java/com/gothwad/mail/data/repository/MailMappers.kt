@@ -4,6 +4,7 @@ import com.gothwad.mail.data.model.AttachmentItem
 import com.gothwad.mail.data.model.EmailThreadEntity
 import com.gothwad.mail.data.model.MailAccountEntity
 import com.gothwad.mail.data.model.MailFolder
+import com.gothwad.mail.data.model.ServerFolder
 import com.gothwad.mail.data.model.ThreadMessage
 import com.gothwad.mail.data.remote.ApiMailSettings
 import com.gothwad.mail.data.remote.ApiMessage

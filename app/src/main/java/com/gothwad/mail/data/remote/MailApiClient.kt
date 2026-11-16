@@ -5,6 +5,7 @@ import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 import kotlinx.serialization.json.Json
 import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -36,7 +37,7 @@ class MailApiClient(
         ignoreUnknownKeys = true
         explicitNulls = false
     }
-    private val base: HttpUrl = HttpUrl.get(baseUrl.trimEnd('/'))
+    private val base: HttpUrl = baseUrl.trimEnd('/').toHttpUrl()
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
     // --- Session & settings ---------------------------------------------------
