@@ -102,7 +102,20 @@ instead of after a full Gradle build. They are **not** a substitute for the Grad
 | --- | --- | --- |
 | `android-ci.yml` | push, pull request, manual | static checks, then `testDebugUnitTest`, `lintDebug`, `assembleDebug`; uploads the test report and debug APK |
 | `planning.yml` | push, pull request, manual | `python3 tools/check_docs.py` |
-| `release.yml` | push to `main`/`master`, `v*` tags, manual | builds Release APK + Debug APK + Play AAB, zipaligns and signs them, publishes a GitHub Release |
+| `release.yml` | **every push**, `v*` tags, manual | builds Release APK + Debug APK + Play AAB and publishes them as a GitHub Release |
+
+### Where the release APK appears
+
+`release.yml` runs on every push, so a downloadable APK always matches the latest commit:
+
+- Push to `main`/`master`, a `v*` tag, or a manual run → a new **versioned release**
+  `v1.0.<run_number>` with `…-Release.apk`, `…-Debug.apk`, `…-PlayStore.aab` and
+  `SHA256SUMS.txt`.
+- Push to any other branch → the single rolling pre-release tagged **`latest`**
+  (*Latest build (branch)*) whose assets are replaced on every push, so preview versions never
+  fill the release list.
+- Without the signing secrets the run still succeeds and publishes the debug-signed APK plus an
+  `…-Release-UNSIGNED.apk`; release artifacts are never signed with the debug key.
 
 Unit tests cover PKCE (`S256` vector), callback validation, single-flight refresh and credential
 eviction, sign-out semantics, peer trust verification and discovery, the Mail API client

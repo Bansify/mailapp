@@ -175,6 +175,14 @@ else:
             errors.append(f"release.yml must build {task}")
     if "apksigner" not in release_text or "zipalign" not in release_text:
         errors.append("release.yml must zipalign and apksigner the release APK")
+    # The release must be produced from every push, not only from main/tags.
+    if not re.search(r"^on:\n  push:\s*$", release_text, re.MULTILINE):
+        errors.append("release.yml must run on every push, not only on selected branches")
+    for step in ("Publish versioned GitHub Release", "Publish rolling pre-release"):
+        if step not in release_text:
+            errors.append(f"release.yml is missing the '{step}' step")
+    if "steps.signing.outputs.can_sign" not in release_text:
+        errors.append("release.yml must degrade gracefully when the signing secrets are missing")
 
 if errors:
     print("\n".join(errors), file=sys.stderr)

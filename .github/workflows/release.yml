@@ -2,9 +2,6 @@ name: Build Signed Release APK & Publish GitHub Release
 
 on:
   push:
-    branches: [ main, master ]
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       version_name:
@@ -18,6 +15,10 @@ on:
 
 permissions:
   contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -57,27 +58,72 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
 
-      - name: Determine Version Code and Name
+      # Publishing rules, so every push ends up on the Releases page without polluting the
+      # version history: tags and main/master pushes get a new versioned release (v1.0.<build>),
+      # every other branch refreshes a single rolling pre-release tagged `latest`.
+      - name: Determine version, tag and publication mode
         id: versioning
         run: |
-          if [ -n "${{ inputs.version_code }}" ]; then
-            V_CODE="${{ inputs.version_code }}"
-          else
-            V_CODE="${{ github.run_number }}"
-          fi
+          set -euo pipefail
+          V_CODE="${{ inputs.version_code }}"
+          [ -n "$V_CODE" ] || V_CODE="${{ github.run_number }}"
 
-          if [ -n "${{ inputs.version_name }}" ]; then
-            V_NAME="${{ inputs.version_name }}"
-          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+          INPUT_NAME="${{ inputs.version_name }}"
+          if [ -n "$INPUT_NAME" ]; then
+            V_NAME="$INPUT_NAME"
+            MODE="versioned"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
             V_NAME="${GITHUB_REF_NAME#v}"
-          else
+            MODE="versioned"
+          elif [ "${{ github.ref }}" = "refs/heads/main" ] || [ "${{ github.ref }}" = "refs/heads/master" ]; then
             V_NAME="1.0.${V_CODE}"
+            MODE="versioned"
+          else
+            # Feature/preview branch: keep the version unique but publish as a pre-release.
+            BRANCH_SLUG=$(printf '%s' "${GITHUB_REF_NAME}" | tr '/' '-' | tr -cd 'A-Za-z0-9._-')
+            V_NAME="1.0.${V_CODE}-${BRANCH_SLUG}"
+            MODE="rolling"
           fi
 
-          echo "Determined Version Code: $V_CODE"
-          echo "Determined Version Name: $V_NAME"
+          if [ "$MODE" = "versioned" ]; then
+            TAG="v${V_NAME}"
+          else
+            TAG="latest"
+          fi
+
+          echo "Mode: $MODE"
+          echo "Version Code: $V_CODE"
+          echo "Version Name: $V_NAME"
+          echo "Release tag: $TAG"
           echo "v_code=$V_CODE" >> "$GITHUB_OUTPUT"
           echo "v_name=$V_NAME" >> "$GITHUB_OUTPUT"
+          echo "v_tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "v_mode=$MODE" >> "$GITHUB_OUTPUT"
+
+      # Secrets cannot be referenced from an `if:` expression, so their presence is resolved once
+      # here. A missing keystore never fails the build: the run then publishes an unsigned release
+      # APK next to the debug APK instead of silently stopping.
+      - name: Resolve signing secrets
+        id: signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 || secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -n "${KEYSTORE_BASE64}" ] && [ -n "${KEYSTORE_PASS}" ]; then
+            echo "can_sign=true" >> "$GITHUB_OUTPUT"
+            echo "Release signing secrets found; the release APK and AAB will be signed."
+          else
+            echo "can_sign=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Release build is unsigned::Configure RELEASE_KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS and KEY_PASSWORD to publish a signed APK. This run publishes the debug-signed APK and an UNSIGNED release APK."
+            {
+              echo "### Release build is unsigned"
+              echo ""
+              echo "Repository secrets \`RELEASE_KEYSTORE_BASE64\`, \`KEYSTORE_PASSWORD\`, \`KEY_ALIAS\` and"
+              echo "\`KEY_PASSWORD\` are not configured, so this release contains the debug APK and an"
+              echo "unsigned release APK. Release artifacts are never signed with the debug key."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Run unit tests
         run: |
@@ -88,12 +134,29 @@ jobs:
 
       - name: Build Release APK, Debug APK & Play Store AAB
         run: |
+          mkdir -p ~/.android
+          if [ ! -f ~/.android/debug.keystore ]; then
+            keytool -genkey -v -keystore ~/.android/debug.keystore -alias androiddebugkey \
+              -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US" || true
+          fi
           ./gradlew :app:assembleRelease :app:assembleDebug :app:bundleRelease \
             -PversionCode=${{ steps.versioning.outputs.v_code }} \
             -PversionName=${{ steps.versioning.outputs.v_name }} \
             --no-daemon --max-workers=2
 
+      - name: Stage debug APK
+        run: |
+          set -euo pipefail
+          mkdir -p release_out
+          V_NAME="${{ steps.versioning.outputs.v_name }}"
+          DEBUG_APK=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1 || true)
+          if [ -n "$DEBUG_APK" ]; then
+            cp "$DEBUG_APK" "release_out/GothwadMail-v${V_NAME}-Debug.apk"
+          fi
+
       - name: Sign Release APK & AAB using Repository Keystore Secrets
+        if: steps.signing.outputs.can_sign == 'true'
         env:
           KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 || secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -101,20 +164,11 @@ jobs:
           KEY_PASS: ${{ secrets.KEY_PASSWORD }}
           V_NAME: ${{ steps.versioning.outputs.v_name }}
         run: |
+          set -euo pipefail
           mkdir -p release_out
 
           UNSIGNED_APK=$(find app/build/outputs/apk/release/ -name "*.apk" | head -n 1)
-          DEBUG_APK=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
           UNSIGNED_AAB=$(find app/build/outputs/bundle/release/ -name "*.aab" | head -n 1)
-
-          if [ -n "$DEBUG_APK" ]; then
-            cp "$DEBUG_APK" "release_out/GothwadMail-v${V_NAME}-Debug.apk"
-          fi
-
-          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASS" ]; then
-            echo "::error::Missing required keystore secrets! Configure RELEASE_KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, and KEY_PASSWORD in GitHub Repo Settings -> Secrets."
-            exit 1
-          fi
 
           KS_PATH="/tmp/gothwad_mail_release.jks"
           echo "$KEYSTORE_BASE64" | tr -d '\r\n ' | base64 -d > "$KS_PATH"
@@ -176,26 +230,69 @@ jobs:
           fi
 
           rm -f "$KS_PATH"
-          (cd release_out && sha256sum GothwadMail-* > SHA256SUMS.txt)
+
+      - name: Stage unsigned release APK & AAB
+        if: steps.signing.outputs.can_sign != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p release_out
+          V_NAME="${{ steps.versioning.outputs.v_name }}"
+          UNSIGNED_APK=$(find app/build/outputs/apk/release/ -name "*.apk" | head -n 1 || true)
+          UNSIGNED_AAB=$(find app/build/outputs/bundle/release/ -name "*.aab" | head -n 1 || true)
+          if [ -n "$UNSIGNED_APK" ]; then
+            cp "$UNSIGNED_APK" "release_out/GothwadMail-v${V_NAME}-Release-UNSIGNED.apk"
+          fi
+          if [ -n "$UNSIGNED_AAB" ]; then
+            cp "$UNSIGNED_AAB" "release_out/GothwadMail-v${V_NAME}-PlayStore-UNSIGNED.aab"
+          fi
+
+      - name: Write checksums
+        run: |
+          set -euo pipefail
+          cd release_out
+          sha256sum GothwadMail-* > SHA256SUMS.txt
+          cat SHA256SUMS.txt
 
       - name: Upload Build Artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Gothwad-Mail-v${{ steps.versioning.outputs.v_name }}-Build${{ steps.versioning.outputs.v_code }}
           path: release_out/
+          if-no-files-found: warn
 
-      - name: Publish GitHub Release
+      # Every push to main/master or a tag produces a new versioned release, exactly like the
+      # Gothwad Accounts app releases.
+      - name: Publish versioned GitHub Release
+        if: steps.versioning.outputs.v_mode == 'versioned'
         uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v${{ steps.versioning.outputs.v_name }}
-          name: v${{ steps.versioning.outputs.v_name }}
+          tag_name: ${{ steps.versioning.outputs.v_tag }}
+          name: ${{ steps.versioning.outputs.v_tag }}
           draft: false
           prerelease: false
           generate_release_notes: true
-          files: |
-            release_out/GothwadMail-v${{ steps.versioning.outputs.v_name }}-Release.apk
-            release_out/GothwadMail-v${{ steps.versioning.outputs.v_name }}-Debug.apk
-            release_out/GothwadMail-v${{ steps.versioning.outputs.v_name }}-PlayStore.aab
-            release_out/SHA256SUMS.txt
+          files: release_out/*
+
+      # Any other branch refreshes one rolling pre-release, so every push still gives a
+      # downloadable APK without filling the release list with preview versions.
+      - name: Publish rolling pre-release
+        if: steps.versioning.outputs.v_mode == 'rolling'
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.versioning.outputs.v_tag }}
+          name: Latest build (${{ github.ref_name }})
+          draft: false
+          prerelease: true
+          make_latest: 'false'
+          body: |
+            Automatic build of branch `${{ github.ref_name }}` at `${{ github.sha }}`.
+
+            This is a rolling pre-release: its assets are replaced on every push to
+            `${{ github.ref_name }}`. Versioned releases (`v<version>`) are published from
+            `main`/`master` pushes and `v*` tags.
+          files: release_out/*
