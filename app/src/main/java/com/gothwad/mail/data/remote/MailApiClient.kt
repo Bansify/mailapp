@@ -192,8 +192,15 @@ class MailApiClient(
         ifNoneMatch: String? = null,
         parse: (Response) -> T,
     ): T {
-        require(url.host == base.host && url.scheme == base.scheme) {
-            "Refusing to send a Gothwad Mail request to ${url.host}"
+        assertSameHost(base, url)
+        if (url.pathSegments.lastOrNull() == ROUTE_SESSION) {
+            // The session probe must answer without a bearer token: it is how the app discovers
+            // whether the stored credential still works.
+            val request = baseRequest(url, ifNoneMatch).get().build()
+            return client.newCall(request).execute().use { result ->
+                if (result.code !in expectedSuccessCodes) throw toApiException(result)
+                parse(result)
+            }
         }
         val builder = Request.Builder()
             .url(url)
@@ -201,12 +208,11 @@ class MailApiClient(
         if (ifNoneMatch != null && ifNoneMatch.isNotBlank()) {
             builder.header("If-None-Match", ifNoneMatch)
         }
-        // The bearer token is only ever attached to the Mail API host.
-        if (url.host == GothwadMailHost) {
-            val token = tokenProvider.accessToken()
-                ?: throw MailApiException(401, MailApiErrorCode.UNAUTHENTICATED, "Not signed in to Gothwad Mail")
-            builder.header("Authorization", "Bearer $token")
-        }
+        // The base URL is the only host this client ever talks to, and it is the only host that
+        // ever receives the bearer token: attachment and image URLs bypass this client entirely.
+        val token = tokenProvider.accessToken()
+            ?: throw MailApiException(401, MailApiErrorCode.UNAUTHENTICATED, "Not signed in to Gothwad Mail")
+        builder.header("Authorization", "Bearer $token")
         val request = builder.method(method, body).build()
         val response = try {
             client.newCall(request).execute()
@@ -219,6 +225,15 @@ class MailApiClient(
             }
             parse(result)
         }
+    }
+
+    /** Builds a request without the bearer token; only used for the session probe. */
+    private fun baseRequest(url: HttpUrl, ifNoneMatch: String?): Request.Builder {
+        val builder = Request.Builder().url(url).header("Accept", "application/json")
+        if (ifNoneMatch != null && ifNoneMatch.isNotBlank()) {
+            builder.header("If-None-Match", ifNoneMatch)
+        }
+        return builder
     }
 
     private fun toApiException(response: Response): MailApiException {
@@ -248,6 +263,19 @@ class MailApiClient(
         const val DEFAULT_BASE_URL: String = "https://mail.gothwadtech.com/api"
         const val GothwadMailHost: String = "mail.gothwadtech.com"
         const val HTTP_NOT_MODIFIED: Int = 304
+
+        /** Path segment of `GET /api/session`, the only endpoint probed without a token. */
+        const val ROUTE_SESSION: String = "session"
+
+        /**
+         * Refuses any request that is not aimed at the configured Mail API origin, so a malformed
+         * or attacker-influenced URL can never carry the bearer token to another host.
+         */
+        fun assertSameHost(base: HttpUrl, url: HttpUrl) {
+            require(url.scheme == base.scheme && url.host == base.host && url.port == base.port) {
+                "Refusing to send a Gothwad Mail request to ${url.host}"
+            }
+        }
 
         fun defaultClient(): OkHttpClient = OkHttpClient.Builder()
             // Never follow a redirect with a bearer token attached.
