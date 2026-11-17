@@ -119,9 +119,21 @@ class GothwadMailAuth(
      */
     suspend fun attemptSilentSignInIfUseful(): Boolean {
         if (sessionManager.currentSession().credentials.isNotEmpty()) return false
-        val candidates = mutableDiscovered.value.filter { it.sourcePackage.isNotBlank() }
+        return signInAllSilently()
+    }
+
+    /**
+     * Copies **every** discovered peer account, not just the first one.
+     *
+     * A user with three accounts in the Gothwad Accounts app expects all three to appear in Mail.
+     * Each account needs its own one-time code, so they are requested in turn; one failing account
+     * (for example because its session expired) must not stop the others.
+     */
+    suspend fun signInAllSilently(): Boolean {
+        val candidates = mutableDiscovered.value.filter { it.sourcePackage.isNotBlank() && !it.isAuthorizedLocally }
         if (candidates.isEmpty()) return false
-        // Accounts app is tried first, then the documented first-party order.
+        // Accounts app is tried first, then the documented first-party order; within one peer the
+        // accounts are copied in discovery order so the primary account stays first.
         val ordered = candidates.sortedBy { candidate ->
             when (candidate.sourcePackage) {
                 KnownGothwadApps.ACCOUNTS -> 0
@@ -131,15 +143,46 @@ class GothwadMailAuth(
                 else -> 4
             }
         }
+        var signedIn = 0
         for (candidate in ordered) {
-            val result = signInSilently(candidate)
-            if (result != null) return true
+            if (signInSilently(candidate, refreshDiscovery = false) != null) signedIn++
         }
-        return false
+        if (signedIn > 0) refreshDiscoveredAccounts()
+        return signedIn > 0
+    }
+
+    /** Reason the last silent attempt failed, for the sign-in sheet to show. */
+    @Volatile
+    var lastSilentFailureReason: String? = null
+        private set
+
+    /**
+     * Explains a peer-code failure in the words a user can act on.
+     *
+     * `untrusted_caller` / `peer_code_unsupported` mean the sibling app is an older build (or was
+     * signed with a different key), which is the most common real-world reason silent SSO is not
+     * available.
+     */
+    fun describeSilentFailure(reason: String?): String = when (reason) {
+        null, "" -> "Automatic sign-in was not available"
+        "untrusted_caller" ->
+            "The Gothwad app on this device is not signed with the same key, so it cannot share the account"
+        "peer_code_unsupported", "no_response" ->
+            "The Gothwad app on this device is too old to share the account automatically"
+        "account_not_signed_in", "no_session" ->
+            "The Gothwad app on this device is signed out, so there is no account to share"
+        "peer_discovery_disabled" -> "Account sharing between Gothwad apps is turned off in this build"
+        "local_account" -> "That account already belongs to this app"
+        "peer_unreachable" -> "The Gothwad app on this device did not respond"
+        "exchange_failed" -> "Gothwad Accounts rejected the shared sign-in"
+        else -> "Automatic sign-in was not available ($reason)"
     }
 
     /** One silent attempt for a discovered account. Returns the account on success. */
-    suspend fun signInSilently(discovered: DiscoveredAccount): MailAuthAccount? {
+    suspend fun signInSilently(
+        discovered: DiscoveredAccount,
+        refreshDiscovery: Boolean = true,
+    ): MailAuthAccount? {
         val verifier = Pkce.createVerifier()
         val challenge = Pkce.challenge(verifier)
         val redirect = GothwadEndpoints.REDIRECT_URI_CUSTOM_SCHEME
@@ -157,9 +200,9 @@ class GothwadMailAuth(
         }
         val issued = peerCode.code
         if (issued == null) {
-            mutableEvents.emit(
-                AuthEvent.SilentSignInFailed(discovered.sourcePackage, peerCode.failureReason ?: "peer_code_failed"),
-            )
+            val reason = peerCode.failureReason ?: "peer_code_failed"
+            lastSilentFailureReason = reason
+            mutableEvents.emit(AuthEvent.SilentSignInFailed(discovered.sourcePackage, reason))
             return null
         }
         return try {
@@ -170,13 +213,14 @@ class GothwadMailAuth(
                     redirectUri = issued.redirectUri.ifBlank { redirect },
                 )
             }
+            lastSilentFailureReason = null
             mutableEvents.emit(AuthEvent.SilentSignInSucceeded(account, discovered.sourcePackage))
-            refreshDiscoveredAccounts()
+            if (refreshDiscovery) refreshDiscoveredAccounts()
             account
         } catch (error: Exception) {
-            mutableEvents.emit(
-                AuthEvent.SilentSignInFailed(discovered.sourcePackage, "exchange_failed"),
-            )
+            val reason = (error as? MailOAuthException)?.message ?: "exchange_failed"
+            lastSilentFailureReason = reason
+            mutableEvents.emit(AuthEvent.SilentSignInFailed(discovered.sourcePackage, reason))
             null
         }
     }

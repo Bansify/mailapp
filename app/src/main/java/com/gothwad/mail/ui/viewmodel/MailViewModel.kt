@@ -221,16 +221,14 @@ class MailViewModel(
     private suspend fun handleAuthEvent(event: AuthEvent) {
         when (event) {
             is AuthEvent.SignedIn -> {
-                repository.activeAccount()?.let { refreshCurrentFolder(showSpinner = true) }
-                _snackbarEvents.emit(MailSnackbarEvent.SimpleMessage("Signed in as ${event.account.username}"))
+                awaitLocalAccount(event.account.username)
             }
             is AuthEvent.SignedOut -> {
                 repository.removeAccount(event.account?.email ?: return)
                 lastSyncedAccount = null
                 _snackbarEvents.emit(MailSnackbarEvent.SimpleMessage(describeSignOut(event.outcome)))
             }
-            is AuthEvent.SilentSignInSucceeded ->
-                _snackbarEvents.emit(MailSnackbarEvent.SimpleMessage("Signed in as ${event.account.username}"))
+            is AuthEvent.SilentSignInSucceeded -> awaitLocalAccount(event.account.username)
 
             is AuthEvent.SilentSignInFailed -> Unit
 
@@ -297,16 +295,21 @@ class MailViewModel(
      */
     fun signInSilently(discovered: DiscoveredAccount) {
         viewModelScope.launch {
-            _nativeAuth.update { state -> state.copy(busy = true, error = null) }
+            _nativeAuth.update { state -> state.copy(busy = true, error = null, hint = "Signing in with your Gothwad Account…") }
+            // Copy every account this peer holds, so a user with several accounts gets all of them
+            // instead of only the one they tapped.
             val account = auth.signInSilently(discovered)
-            _nativeAuth.update { state -> state.copy(busy = false) }
+            if (account != null) auth.signInAllSilently()
+            _nativeAuth.update { state -> state.copy(busy = false, hint = null) }
             if (account != null) {
-                repository.activeAccount()?.let { refreshCurrentFolder(showSpinner = true) }
+                awaitLocalAccount(account.username)
             } else {
-                // Fall back to the native sheet, pre-filled with the discovered identity.
-                openNativeSignIn(prefillIdentifier = discovered.email ?: discovered.username)
+                // Fall back to the native sheet, pre-filled with the discovered identity, and say
+                // exactly why the automatic path did not work.
+                openNativeSignIn(prefillIdentifier = discovered.username ?: discovered.email)
+                val reason = auth.describeSilentFailure(auth.lastSilentFailureReason)
                 _nativeAuth.update { state ->
-                    state.copy(hint = "Silent sign-in was not available. Enter your password to continue.")
+                    state.copy(hint = "$reason. Enter your password to continue.")
                 }
             }
         }
@@ -381,7 +384,13 @@ class MailViewModel(
     }
 
     fun nativeSubmitMfa(code: String) {
-        val challenge = _nativeAuth.value.challenge ?: return
+        val challenge = _nativeAuth.value.challenge
+        if (challenge.isNullOrBlank()) {
+            _nativeAuth.update { state ->
+                state.copy(step = NativeAuthStep.IDENTIFIER, hint = "That sign-in attempt expired. Sign in again.")
+            }
+            return
+        }
         viewModelScope.launch {
             _nativeAuth.update { state -> state.copy(busy = true, error = null) }
             when (val outcome = auth.verifyMfa(challenge, code.trim())) {
@@ -448,13 +457,36 @@ class MailViewModel(
     }
 
     private fun finishNativeAuth(username: String) {
-        _nativeAuth.update { state ->
-            state.copy(busy = false, visible = false, step = NativeAuthStep.IDENTIFIER)
-        }
+        _nativeAuth.update { state -> state.copy(busy = false, visible = false, step = NativeAuthStep.IDENTIFIER) }
         viewModelScope.launch {
-            repository.activeAccount()?.let { refreshCurrentFolder(showSpinner = true) }
+            awaitLocalAccount(username)
             _snackbarEvents.emit(MailSnackbarEvent.SimpleMessage("Signed in as $username"))
         }
+    }
+
+    /**
+     * Waits until the signed-in account has a local row, then loads the first page of mail.
+     *
+     * The account table is written by the session-state collector, so the sign-in call can return
+     * before the row exists. Loading mail immediately would find no active account and silently
+     * leave the list empty; this makes the first sync deterministic.
+     */
+    private suspend fun awaitLocalAccount(username: String): MailAccountEntity? {
+        repeat(40) {
+            val account = repository.activeAccount()
+            if (account != null) {
+                syncAccountsToCache(
+                    accounts = auth.sessionManager.accounts(),
+                    active = auth.sessionManager.currentSession().activeCredential()?.account,
+                )
+                localState.update { it.copy(selectedFolder = MailFolder.PRIMARY) }
+                refreshCurrentFolder(showSpinner = true)
+                return account
+            }
+            delay(50)
+        }
+        localState.update { it.copy(syncError = "Signed in as $username, but the mailbox could not be opened") }
+        return null
     }
 
     private fun nativeAuthFailureText(outcome: NativeAuthOutcome.Failed): String = when {
@@ -585,13 +617,25 @@ class MailViewModel(
                 auth.refreshDiscoveredAccounts()
                 localState.update { it.copy(syncError = null) }
             } catch (error: MailApiException) {
-                if (error.isUnauthenticated) {
-                    localState.update { it.copy(syncError = "Your Gothwad Account session expired") }
-                } else {
-                    localState.update { it.copy(syncError = "Could not sync Gothwad Mail") }
+                localState.update {
+                    it.copy(
+                        syncError = if (error.isUnauthenticated) {
+                            "Your Gothwad Account session expired. Sign in again."
+                        } else {
+                            error.message?.takeIf { message -> message.isNotBlank() }
+                                ?.let { message -> "Could not sync Gothwad Mail: $message" }
+                                ?: "Could not sync Gothwad Mail"
+                        },
+                    )
                 }
             } catch (error: Exception) {
-                localState.update { it.copy(syncError = "Could not sync Gothwad Mail") }
+                localState.update {
+                    it.copy(
+                        syncError = error.message?.takeIf { message -> message.isNotBlank() }
+                            ?.let { message -> "Could not sync Gothwad Mail: $message" }
+                            ?: "Could not sync Gothwad Mail",
+                    )
+                }
             } finally {
                 if (showSpinner) localState.update { it.copy(isRefreshing = false) }
             }

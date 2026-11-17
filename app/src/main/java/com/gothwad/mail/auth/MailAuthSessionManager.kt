@@ -223,7 +223,12 @@ class MailAuthSessionManager(
             save(
                 data.copy(
                     credentials = data.credentials.filterNot { it.account.userId == account.userId } + credential,
-                    activeUserId = account.userId,
+                    // Keep the first account as active: copying three peer accounts in a row must
+                    // not leave the last one selected, which would look like the earlier accounts
+                    // disappeared.
+                    activeUserId = data.activeUserId?.takeIf { id ->
+                        data.credentials.any { it.account.userId == id }
+                    } ?: account.userId,
                     pending = null,
                 ),
             )

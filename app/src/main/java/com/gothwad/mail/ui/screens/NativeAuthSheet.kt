@@ -282,12 +282,19 @@ private fun MfaStep(
     onSubmit: (String) -> Unit,
 ) {
     var code by remember(state.challenge) { mutableStateOf("") }
+    // Accounts accepts a 6-digit authenticator code OR a one-time recovery code, so the field must
+    // take letters as well; an alphanumeric keyboard is the only one that can type a backup code.
+    val digitsOnly = code.length <= 6 && code.all { it.isDigit() }
     OutlinedTextField(
         value = code,
-        onValueChange = { value -> if (value.length <= 12) { code = value } },
-        label = { Text("6-digit code") },
+        onValueChange = { value -> if (value.length <= 64) { code = value.trim() } },
+        label = { Text("Authenticator or recovery code") },
+        placeholder = { Text("123456 or a backup code") },
         singleLine = true,
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done, keyboardType = KeyboardType.NumberPassword),
+        keyboardOptions = KeyboardOptions(
+            imeAction = ImeAction.Done,
+            keyboardType = if (digitsOnly) KeyboardType.NumberPassword else KeyboardType.Text,
+        ),
         modifier = Modifier
             .fillMaxWidth()
             .testTag("native_auth_mfa_field"),
