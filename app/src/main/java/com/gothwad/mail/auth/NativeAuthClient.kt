@@ -2,6 +2,7 @@ package com.gothwad.mail.auth
 
 import java.io.IOException
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient

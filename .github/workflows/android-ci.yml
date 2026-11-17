@@ -77,7 +77,12 @@ jobs:
           excerpt = "\n".join(errors + ([""] if errors else []) + tail)[-6000:]
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
               f.write("### Gradle CI failure\n\n```text\n" + excerpt + "\n```\n")
-          escaped = excerpt.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          # One annotation per compiler error: a single joined annotation is truncated by the
+          # checks API, which made the first (root-cause) error invisible.
+          for line in errors:
+              one = line.replace("%", "%25").replace("\r", "").replace("\n", " ")[:900]
+              print(f"::error title=Kotlin::{one}")
+          escaped = tail[:1500].replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
           print(f"::error title=Android CI failure::{escaped}")
           PY
             exit 1
