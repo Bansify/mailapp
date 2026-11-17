@@ -16,7 +16,29 @@ interface PeerDirectoryTransport {
 
     /** Sends a device-removal notification; returns whether the peer acknowledged it. */
     fun notifyAccountRemoved(packageName: String, userId: String, removedAt: Long, policy: BrokerTrustPolicy): Boolean
+
+    /**
+     * Asks a signed-in peer app to issue a one-time PKCE code for this app (`issue_peer_code`).
+     * Returns `null` when the peer is unreachable, untrusted or refuses.
+     */
+    fun issuePeerCode(
+        packageName: String,
+        request: PeerCodeRequest,
+        policy: BrokerTrustPolicy,
+    ): PeerAuthCodeResult? = null
 }
+
+/** Parameters of an `issue_peer_code` IPC call. Contains no secrets. */
+data class PeerCodeRequest(
+    val userId: String? = null,
+    val username: String? = null,
+    val email: String? = null,
+    val targetClientId: String,
+    val redirectUri: String,
+    val scope: String,
+    val codeChallenge: String,
+    val codeChallengeMethod: String = "S256",
+)
 
 /**
  * ContentResolver-backed transport.
@@ -73,6 +95,53 @@ class AndroidPeerDirectoryTransport(private val context: Context) : PeerDirector
             val result = context.contentResolver.call(uri, BrokerIpcContract.METHOD_NOTIFY_ACCOUNT_REMOVED, null, extras)
             result?.getBoolean(BrokerIpcContract.KEY_OK, false) == true
         }.getOrDefault(false)
+    }
+
+    override fun issuePeerCode(
+        packageName: String,
+        request: PeerCodeRequest,
+        policy: BrokerTrustPolicy,
+    ): PeerAuthCodeResult? {
+        if (packageName == context.packageName) return null
+        if (request.targetClientId.isBlank() ||
+            request.codeChallenge.isBlank() ||
+            request.redirectUri.isBlank() ||
+            request.scope.isBlank()
+        ) {
+            return null
+        }
+        if (resolvePeerPackage(packageName) == null || !isTrusted(packageName, policy)) return null
+        val authority = KnownGothwadApps.directoryAuthorityFor(packageName)
+        return runCatching {
+            val uri = Uri.parse("content://$authority")
+            val extras = Bundle().apply {
+                request.userId?.let { putString(BrokerIpcContract.KEY_USER_ID, it) }
+                request.username?.let { putString(BrokerIpcContract.KEY_USERNAME, it) }
+                request.email?.let { putString(BrokerIpcContract.KEY_EMAIL, it) }
+                putString(BrokerIpcContract.KEY_TARGET_CLIENT_ID, request.targetClientId)
+                putString(BrokerIpcContract.KEY_REDIRECT_URI, request.redirectUri)
+                putString(BrokerIpcContract.KEY_SCOPE, request.scope)
+                putString(BrokerIpcContract.KEY_CODE_CHALLENGE, request.codeChallenge)
+                putString(BrokerIpcContract.KEY_CODE_CHALLENGE_METHOD, request.codeChallengeMethod)
+            }
+            val result = context.contentResolver.call(uri, BrokerIpcContract.METHOD_ISSUE_PEER_CODE, null, extras)
+                ?: return@runCatching PeerAuthCodeResult.failure("no_response")
+            if (!result.getBoolean(BrokerIpcContract.KEY_OK, false)) {
+                return@runCatching PeerAuthCodeResult.failure(
+                    result.getString(BrokerIpcContract.KEY_ERROR) ?: "peer_refused",
+                )
+            }
+            val code = result.getString(BrokerIpcContract.KEY_CODE)?.takeIf { it.isNotBlank() }
+                ?: return@runCatching PeerAuthCodeResult.failure("empty_code")
+            PeerAuthCodeResult.success(
+                PeerAuthCode(
+                    code = code,
+                    redirectUri = result.getString(BrokerIpcContract.KEY_REDIRECT_URI)
+                        ?.takeIf { it.isNotBlank() } ?: request.redirectUri,
+                    scope = result.getString(BrokerIpcContract.KEY_SCOPE),
+                ),
+            )
+        }.getOrDefault(PeerAuthCodeResult.failure("peer_unreachable"))
     }
 
     private fun resolvePeerPackage(packageName: String): String? {
@@ -169,6 +238,38 @@ class PeerBrokerClient(
                 .thenByDescending { it.lastSeenAt }
                 .thenBy { it.email ?: it.userId },
         )
+    }
+
+    /**
+     * Zero-browser silent SSO: asks the peer app that owns [discovered] for a one-time PKCE code.
+     *
+     * The peer app must already hold a Gothwad Accounts session for that account; it exchanges its
+     * own grant server-side and only a single-use code crosses IPC.
+     */
+    fun requestPeerAuthCode(
+        discovered: DiscoveredAccount,
+        targetClientId: String,
+        redirectUri: String,
+        scope: String,
+        codeChallenge: String,
+        policy: BrokerPolicy,
+    ): PeerAuthCodeResult {
+        val discovery = policy as? BrokerPolicy.PeerDiscovery
+            ?: return PeerAuthCodeResult.failure("peer_discovery_disabled")
+        if (discovered.sourcePackage == localPackage) {
+            return PeerAuthCodeResult.failure("local_account")
+        }
+        val request = PeerCodeRequest(
+            userId = discovered.userId.takeIf { it.isNotBlank() },
+            username = discovered.username,
+            email = discovered.email,
+            targetClientId = targetClientId,
+            redirectUri = redirectUri,
+            scope = scope,
+            codeChallenge = codeChallenge,
+        )
+        val result = transport.issuePeerCode(discovered.sourcePackage, request, discovery.trustPolicy)
+        return result ?: PeerAuthCodeResult.failure("peer_code_unsupported")
     }
 
     /** Notifies every verified sibling app that an account was removed from this device. */

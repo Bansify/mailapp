@@ -3,11 +3,14 @@ package com.gothwad.mail.auth
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.FormBody
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 
 /** Wire form of `POST /oauth/token`. */
 @Serializable
@@ -31,6 +34,18 @@ interface MailOAuthService {
     fun refreshToken(refreshToken: String): TokenResponse
     fun userInfo(accessToken: String): GothwadUserInfo
     fun revoke(refreshToken: String?, accessToken: String?): RevokeStatus
+
+    /**
+     * Exchanges a peer-issued one-time PKCE code for this app's own token pair
+     * (`POST /api/mobile/auth/peer-code` equivalent, redeemed through the token endpoint).
+     */
+    fun issuePeerAuthCode(
+        peerAccessToken: String,
+        targetClientId: String,
+        redirectUri: String,
+        scope: String,
+        codeChallenge: String,
+    ): String? = null
 }
 
 /**
@@ -102,6 +117,46 @@ class MailOAuthClient(
                 }
             }
         }.getOrDefault(RevokeStatus.Failed)
+    }
+
+    /**
+     * Asks this app's own Accounts session for a one-time code for a sibling app.
+     *
+     * Used when Gothwad Mail is the peer that already holds a session and another first-party app
+     * requests silent sign-in. The access token never leaves the process.
+     */
+    override fun issuePeerAuthCode(
+        peerAccessToken: String,
+        targetClientId: String,
+        redirectUri: String,
+        scope: String,
+        codeChallenge: String,
+    ): String? {
+        // Explicit type: `encodeToString` needs the serializer, which the reified overload of
+        // `Json.encodeToString(value)` cannot infer from a lambda-wrapped argument.
+        val payload: String = json.encodeToString(
+            ApiPeerCodeRequest.serializer(),
+            ApiPeerCodeRequest(
+                targetClientId = targetClientId,
+                redirectUri = redirectUri,
+                scope = scope,
+                codeChallenge = codeChallenge,
+                codeChallengeMethod = "S256",
+            ),
+        )
+        val request = Request.Builder()
+            .url("$base/mobile/auth/peer-code")
+            .header("Authorization", "Bearer $peerAccessToken")
+            .header("Accept", "application/json")
+            .post(payload.toRequestBody("application/json; charset=utf-8".toMediaType()))
+            .build()
+        return runCatching {
+            client.newCall(request).execute().use { response ->
+                val body = response.body?.string().orEmpty()
+                if (!response.isSuccessful) return@use null
+                json.decodeFromString<ApiPeerCodeResponse>(body).code?.takeIf { it.isNotBlank() }
+            }
+        }.getOrDefault(null)
     }
 
     private fun requestToken(vararg fields: Pair<String, String>): TokenResponse {

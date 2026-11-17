@@ -7,7 +7,9 @@ import com.gothwad.mail.auth.AuthSessionState
 import com.gothwad.mail.auth.AuthEvent
 import com.gothwad.mail.auth.GothwadMailAuth
 import com.gothwad.mail.auth.MailAuthAccount
+import com.gothwad.mail.auth.ApiNativeSignUpRequest
 import com.gothwad.mail.auth.MailAuthFailure
+import com.gothwad.mail.auth.NativeAuthOutcome
 import com.gothwad.mail.auth.broker.DiscoveredAccount
 import com.gothwad.mail.data.model.AppSettingsEntity
 import com.gothwad.mail.data.model.AttachmentItem
@@ -27,6 +29,8 @@ import com.gothwad.mail.ui.state.AuthScreenState
 import com.gothwad.mail.ui.state.BottomNavTab
 import com.gothwad.mail.ui.state.ComposeInitialData
 import com.gothwad.mail.ui.state.MailUiState
+import com.gothwad.mail.ui.state.NativeAuthStep
+import com.gothwad.mail.ui.state.NativeAuthUiState
 import com.gothwad.mail.ui.state.QuickFilterChip
 import com.gothwad.mail.ui.state.SearchFilterState
 import kotlinx.coroutines.Job
@@ -86,6 +90,10 @@ class MailViewModel(
 ) : ViewModel() {
 
     private val localState = MutableStateFlow(LocalNavState())
+
+    /** Drives the native (browser-less) sign-in sheet. */
+    private val _nativeAuth = MutableStateFlow(NativeAuthUiState())
+    val nativeAuth: StateFlow<NativeAuthUiState> = _nativeAuth.asStateFlow()
     private val _snackbarEvents = MutableSharedFlow<MailSnackbarEvent>(extraBufferCapacity = 8)
     val snackbarEvents: SharedFlow<MailSnackbarEvent> = _snackbarEvents.asSharedFlow()
 
@@ -220,6 +228,11 @@ class MailViewModel(
                 lastSyncedAccount = null
                 _snackbarEvents.emit(MailSnackbarEvent.SimpleMessage(describeSignOut(event.outcome)))
             }
+            is AuthEvent.SilentSignInSucceeded ->
+                _snackbarEvents.emit(MailSnackbarEvent.SimpleMessage("Signed in as ${event.account.username}"))
+
+            is AuthEvent.SilentSignInFailed -> Unit
+
             AuthEvent.LoginCancelled -> _snackbarEvents.emit(
                 MailSnackbarEvent.SimpleMessage("Sign-in was cancelled"),
             )
@@ -273,6 +286,178 @@ class MailViewModel(
             if (cached.email !in known) repository.removeAccount(cached.email)
         }
         active?.let { repository.switchAccount(it.email) }
+    }
+
+    /**
+     * One-tap silent sign-in for an account discovered through a verified sibling app.
+     *
+     * This replaces the browser hop: the peer issues a PKCE code over Binder IPC and the app
+     * redeems it in-process, so no browser and no permission screen is shown.
+     */
+    fun signInSilently(discovered: DiscoveredAccount) {
+        viewModelScope.launch {
+            _nativeAuth.update { state -> state.copy(busy = true, error = null) }
+            val account = auth.signInSilently(discovered)
+            _nativeAuth.update { state -> state.copy(busy = false) }
+            if (account != null) {
+                repository.activeAccount()?.let { refreshCurrentFolder(showSpinner = true) }
+            } else {
+                // Fall back to the native sheet, pre-filled with the discovered identity.
+                openNativeSignIn(prefillIdentifier = discovered.email ?: discovered.username)
+                _nativeAuth.update { state ->
+                    state.copy(hint = "Silent sign-in was not available. Enter your password to continue.")
+                }
+            }
+        }
+    }
+
+    // --- Native auth (no browser) -------------------------------------------
+
+    fun openNativeSignIn(prefillIdentifier: String? = null, startOnSignUp: Boolean = false) {
+        _nativeAuth.value = NativeAuthUiState(
+            visible = true,
+            step = if (startOnSignUp) NativeAuthStep.SIGN_UP else NativeAuthStep.IDENTIFIER,
+            identifier = prefillIdentifier.orEmpty(),
+        )
+    }
+
+    fun openNativeSignUp() = openNativeSignIn(startOnSignUp = true)
+
+    fun dismissNativeAuth() {
+        _nativeAuth.value = NativeAuthUiState()
+    }
+
+    fun nativeAuthUpdate(transform: (NativeAuthUiState) -> NativeAuthUiState) {
+        _nativeAuth.update { current -> transform(current) }
+    }
+
+    /** Step 1 -> step 2: confirm the identifier exists, then ask for the password. */
+    fun nativeSubmitIdentifier(identifier: String) {
+        val trimmed = identifier.trim()
+        if (trimmed.isEmpty()) {
+            _nativeAuth.update { state -> state.copy(error = "Enter your username, email or phone number") }
+            return
+        }
+        viewModelScope.launch {
+            _nativeAuth.update { state -> state.copy(busy = true, error = null, identifier = trimmed) }
+            val result = runCatching { auth.checkIdentifier(trimmed) }.getOrNull()
+            _nativeAuth.update { state ->
+                when {
+                    result == null -> state.copy(busy = false, error = "Could not reach Gothwad Accounts")
+                    // Only a definite "does not exist" blocks the next step; an unknown answer
+                    // still lets the user try the password.
+                    result.exists == false && result.ok ->
+                        state.copy(busy = false, error = "No Gothwad Account matches that identifier")
+                    else -> state.copy(busy = false, step = NativeAuthStep.PASSWORD)
+                }
+            }
+        }
+    }
+
+    fun nativeSubmitPassword(password: String) {
+        val identifier = _nativeAuth.value.identifier
+        if (password.isEmpty()) {
+            _nativeAuth.update { state -> state.copy(error = "Enter your password") }
+            return
+        }
+        viewModelScope.launch {
+            _nativeAuth.update { state -> state.copy(busy = true, error = null) }
+            when (val outcome = auth.signInNatively(identifier, password)) {
+                is NativeAuthOutcome.Success -> finishNativeAuth(outcome.account.username)
+                is NativeAuthOutcome.MfaRequired -> _nativeAuth.update { state ->
+                    state.copy(
+                        busy = false,
+                        step = NativeAuthStep.MFA,
+                        challenge = outcome.challenge,
+                        hint = outcome.message ?: "Enter the 6-digit code from your authenticator app",
+                    )
+                }
+                is NativeAuthOutcome.Failed -> _nativeAuth.update { state ->
+                    state.copy(busy = false, error = nativeAuthFailureText(outcome))
+                }
+            }
+        }
+    }
+
+    fun nativeSubmitMfa(code: String) {
+        val challenge = _nativeAuth.value.challenge ?: return
+        viewModelScope.launch {
+            _nativeAuth.update { state -> state.copy(busy = true, error = null) }
+            when (val outcome = auth.verifyMfa(challenge, code.trim())) {
+                is NativeAuthOutcome.Success -> finishNativeAuth(outcome.account.username)
+                is NativeAuthOutcome.MfaRequired -> _nativeAuth.update { state ->
+                    state.copy(busy = false, challenge = outcome.challenge, error = "That code was not accepted")
+                }
+                is NativeAuthOutcome.Failed -> _nativeAuth.update { state ->
+                    state.copy(busy = false, error = nativeAuthFailureText(outcome))
+                }
+            }
+        }
+    }
+
+    fun nativeSubmitSignUp(request: ApiNativeSignUpRequest) {
+        viewModelScope.launch {
+            _nativeAuth.update { state -> state.copy(busy = true, error = null) }
+            when (val outcome = auth.signUpNatively(request)) {
+                is NativeAuthOutcome.Success -> finishNativeAuth(outcome.account.username)
+                is NativeAuthOutcome.MfaRequired -> _nativeAuth.update { state ->
+                    state.copy(busy = false, step = NativeAuthStep.MFA, challenge = outcome.challenge)
+                }
+                is NativeAuthOutcome.Failed -> _nativeAuth.update { state ->
+                    state.copy(busy = false, error = nativeAuthFailureText(outcome))
+                }
+            }
+        }
+    }
+
+    fun nativeForgotPassword(username: String, onSent: (String) -> Unit = {}) {
+        viewModelScope.launch {
+            _nativeAuth.update { state -> state.copy(busy = true, error = null) }
+            val result = runCatching { auth.forgotPassword(username) }.getOrNull()
+            _nativeAuth.update { state ->
+                state.copy(
+                    busy = false,
+                    error = if (result?.ok == true) null else result?.error ?: "Could not send the reset link",
+                    hint = if (result?.ok == true) {
+                        result.message ?: "Check your recovery email for the reset link"
+                    } else {
+                        state.hint
+                    },
+                )
+            }
+            if (result?.ok == true) onSent(result.message ?: "Check your recovery email for the reset link")
+        }
+    }
+
+    fun nativeResetPassword(token: String, password: String) {
+        viewModelScope.launch {
+            _nativeAuth.update { state -> state.copy(busy = true, error = null) }
+            val result = runCatching { auth.resetPassword(token, password) }.getOrNull()
+            _nativeAuth.update { state ->
+                state.copy(
+                    busy = false,
+                    error = if (result?.ok == true) null else result?.error ?: "Could not reset the password",
+                    step = if (result?.ok == true) NativeAuthStep.IDENTIFIER else state.step,
+                    hint = if (result?.ok == true) "Password updated. Sign in with your new password." else state.hint,
+                )
+            }
+        }
+    }
+
+    private fun finishNativeAuth(username: String) {
+        _nativeAuth.update { state ->
+            state.copy(busy = false, visible = false, step = NativeAuthStep.IDENTIFIER)
+        }
+        viewModelScope.launch {
+            repository.activeAccount()?.let { refreshCurrentFolder(showSpinner = true) }
+            _snackbarEvents.emit(MailSnackbarEvent.SimpleMessage("Signed in as $username"))
+        }
+    }
+
+    private fun nativeAuthFailureText(outcome: NativeAuthOutcome.Failed): String = when {
+        outcome.rejected -> "Incorrect identifier or password"
+        outcome.message.contains("mfa", ignoreCase = true) -> "Enter the 6-digit code from your authenticator app"
+        else -> outcome.message.ifBlank { "Could not sign in" }
     }
 
     /** Starts the interactive Gothwad Accounts sign-in from the signed-out screen. */

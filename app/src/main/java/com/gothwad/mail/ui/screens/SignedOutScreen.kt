@@ -55,7 +55,9 @@ fun SignedOutScreen(
     onSignIn: () -> Unit,
     onUseAnotherAccount: () -> Unit,
     onContinueAsDiscovered: (DiscoveredAccount) -> Unit,
-    onOpenAccountManager: () -> Unit
+    onOpenAccountManager: () -> Unit,
+    onBrowserSignIn: () -> Unit = {},
+    onBrowserUseAnotherAccount: () -> Unit = {},
 ) {
     Surface(
         modifier = Modifier
@@ -111,6 +113,14 @@ fun SignedOutScreen(
 
                 Spacer(modifier = Modifier.height(28.dp))
 
+                if (uiState.discoveredAccounts.any { !it.isAuthorizedLocally } && uiState.authState != AuthScreenState.LOADING) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    SilentSignInBanner(
+                        text = "Signing in with your Gothwad Account on this device…",
+                        modifier = Modifier.widthIn(max = 520.dp),
+                    )
+                }
+
                 if (uiState.authState == AuthScreenState.LOADING) {
                     CircularProgressIndicator(modifier = Modifier.size(28.dp))
                     Spacer(modifier = Modifier.height(20.dp))
@@ -159,7 +169,27 @@ fun SignedOutScreen(
                         .testTag("use_another_account_button"),
                     shape = RoundedCornerShape(25.dp)
                 ) {
-                    Text("Use another account", style = MaterialTheme.typography.titleSmall)
+                    Text("Create a Gothwad Account", style = MaterialTheme.typography.titleSmall)
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Secondary: the original browser OAuth 2.0 + PKCE flow, kept for parity.
+                TextButton(
+                    onClick = onBrowserSignIn,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                        .testTag("browser_sign_in_button"),
+                ) {
+                    Text("Sign in with browser", style = MaterialTheme.typography.titleSmall)
+                }
+
+                TextButton(
+                    onClick = onBrowserUseAnotherAccount,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Choose another account in the browser", style = MaterialTheme.typography.bodySmall)
                 }
 
                 if (uiState.authFailure != null) {

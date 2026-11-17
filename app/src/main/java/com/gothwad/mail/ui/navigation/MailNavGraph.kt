@@ -14,7 +14,9 @@ import com.gothwad.mail.ui.screens.ComposeScreen
 import com.gothwad.mail.ui.screens.InboxScreen
 import com.gothwad.mail.ui.screens.SearchScreen
 import com.gothwad.mail.ui.screens.SettingsScreen
+import com.gothwad.mail.ui.screens.NativeAuthSheet
 import com.gothwad.mail.ui.screens.SignedOutScreen
+import com.gothwad.mail.ui.state.NativeAuthStep
 import com.gothwad.mail.ui.screens.ThreadDetailScreen
 import com.gothwad.mail.ui.state.AuthScreenState
 import com.gothwad.mail.ui.state.ComposeInitialData
@@ -62,20 +64,44 @@ fun MailNavGraph(
     val activity = context as? android.app.Activity
 
     if (uiState.authState == AuthScreenState.SIGNED_OUT && uiState.allAccounts.isEmpty()) {
+        val nativeAuth by viewModel.nativeAuth.collectAsStateWithLifecycle()
         SignedOutScreen(
             uiState = uiState,
-            onSignIn = {
-                if (activity != null) viewModel.signIn(activity)
-            },
-            onUseAnotherAccount = {
-                if (activity != null) viewModel.signIn(activity, chooseAccount = true)
-            },
-            onContinueAsDiscovered = { discovered ->
-                if (activity != null) viewModel.signInAsDiscovered(activity, discovered)
-            },
+            // Primary action: the 100% native sheet, so sign-in works with no browser installed.
+            onSignIn = { viewModel.openNativeSignIn() },
+            onUseAnotherAccount = { viewModel.openNativeSignUp() },
+            onContinueAsDiscovered = { discovered -> viewModel.signInSilently(discovered) },
             onOpenAccountManager = {
                 if (activity != null) viewModel.openAccountManager(activity)
+            },
+            // Secondary: the original Chrome Custom Tabs OAuth 2.0 + PKCE flow.
+            onBrowserSignIn = {
+                if (activity != null) viewModel.signIn(activity)
+            },
+            onBrowserUseAnotherAccount = {
+                if (activity != null) viewModel.signIn(activity, chooseAccount = true)
             }
+        )
+        NativeAuthSheet(
+            state = nativeAuth,
+            onDismiss = viewModel::dismissNativeAuth,
+            onSubmitIdentifier = viewModel::nativeSubmitIdentifier,
+            onSubmitPassword = viewModel::nativeSubmitPassword,
+            onSubmitMfa = viewModel::nativeSubmitMfa,
+            onSubmitSignUp = viewModel::nativeSubmitSignUp,
+            onForgotPassword = { identifier -> viewModel.nativeForgotPassword(identifier) },
+            onResetPassword = viewModel::nativeResetPassword,
+            onSwitchToSignUp = {
+                viewModel.nativeAuthUpdate { state -> state.copy(step = NativeAuthStep.SIGN_UP, error = null) }
+            },
+            onSwitchToSignIn = {
+                viewModel.nativeAuthUpdate { state -> state.copy(step = NativeAuthStep.IDENTIFIER, error = null) }
+            },
+            onUpdate = { transform -> viewModel.nativeAuthUpdate(transform) },
+            onBrowserSignIn = {
+                viewModel.dismissNativeAuth()
+                if (activity != null) viewModel.signIn(activity)
+            },
         )
         return
     }
@@ -140,7 +166,7 @@ fun MailNavGraph(
                 },
                 onOpenSettings = { navController.navigate(SettingsRoute) },
                 onSwitchAccount = viewModel::switchAccount,
-                onAddAccount = { activity?.let { viewModel.signIn(it, chooseAccount = true) } },
+                onAddAccount = { viewModel.openNativeSignIn() },
                 onManageAccount = { activity?.let { viewModel.openAccountManager(it) } },
                 onContinueAsDiscovered = { discovered ->
                     activity?.let { viewModel.signInAsDiscovered(it, discovered) }
