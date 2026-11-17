@@ -14,9 +14,16 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Brightness6
+import androidx.compose.material.icons.rounded.CloudQueue
 import androidx.compose.material.icons.rounded.DensitySmall
 import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.FlightTakeoff
+import androidx.compose.material.icons.rounded.LinkOff
+import androidx.compose.material.icons.rounded.Logout
+import androidx.compose.material.icons.rounded.ManageAccounts
+import androidx.compose.material.icons.rounded.PhonelinkErase
+import androidx.compose.material.icons.rounded.PrivacyTip
+import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Swipe
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.gothwad.mail.data.model.AppSettingsEntity
 import com.gothwad.mail.data.model.MailAccountEntity
+import com.gothwad.mail.data.model.RetentionPolicy
 import com.gothwad.mail.data.model.SwipeAction
 import com.gothwad.mail.data.model.ThemePreference
 import com.gothwad.mail.ui.components.SenderAvatar
@@ -53,11 +61,21 @@ import com.gothwad.mail.ui.components.SenderAvatar
 fun SettingsScreen(
     settings: AppSettingsEntity,
     activeAccount: MailAccountEntity?,
+    retention: RetentionPolicy,
     onBack: () -> Unit,
     onUpdateSettings: (AppSettingsEntity) -> Unit,
-    onUpdateAccount: (MailAccountEntity) -> Unit
+    onUpdateAccount: (MailAccountEntity) -> Unit,
+    onUpdateRetention: (RetentionPolicy) -> Unit,
+    onSignOutOfMail: () -> Unit,
+    onRemoveAccountFromDevice: () -> Unit,
+    onDisconnectFromServer: () -> Unit,
+    onManageAccount: () -> Unit,
+    onOpenPrivacyPolicy: () -> Unit
 ) {
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showRetentionDialog by remember { mutableStateOf(false) }
+    var showSignOutDialog by remember { mutableStateOf(false) }
+    var showRemoveDialog by remember { mutableStateOf(false) }
     var showSwipeDialog by remember { mutableStateOf<Boolean?>(null) } // true=right, false=left
     var showSignatureDialog by remember { mutableStateOf(false) }
     var showVacationDialog by remember { mutableStateOf(false) }
@@ -184,8 +202,161 @@ fun SettingsScreen(
                     subtitle = if (activeAccount.vacationEnabled) "On · Auto-reply active" else "Off",
                     onClick = { showVacationDialog = true }
                 )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                Text(
+                    text = "Gothwad Mail storage",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                )
+
+                SettingsRow(
+                    icon = Icons.Rounded.Storage,
+                    title = "Mailbox retention",
+                    subtitle = retention.label,
+                    onClick = { showRetentionDialog = true }
+                )
+
+                SettingsRow(
+                    icon = Icons.Rounded.CloudQueue,
+                    title = "Mail storage used",
+                    subtitle = "${activeAccount.usedStorageLabel} of ${activeAccount.totalStorageLabel} · " +
+                        "${activeAccount.totalMessages} messages",
+                    onClick = { }
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                Text(
+                    text = "Gothwad Account",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                )
+
+                SettingsRow(
+                    icon = Icons.Rounded.ManageAccounts,
+                    title = "Manage your Gothwad Account",
+                    subtitle = "Open Gothwad Accounts or the Accounts website",
+                    onClick = onManageAccount
+                )
+
+                SettingsRow(
+                    icon = Icons.Rounded.Logout,
+                    title = "Sign out of this account",
+                    subtitle = "Removes the Mail tokens from this device only",
+                    onClick = { showSignOutDialog = true }
+                )
+
+                SettingsRow(
+                    icon = Icons.Rounded.LinkOff,
+                    title = "Disconnect Mail grant on the server",
+                    subtitle = "Revokes Gothwad Mail access in your Gothwad Account",
+                    onClick = onDisconnectFromServer
+                )
+
+                SettingsRow(
+                    icon = Icons.Rounded.PhonelinkErase,
+                    title = "Remove account from this device",
+                    subtitle = "Also notifies other Gothwad apps installed here",
+                    onClick = { showRemoveDialog = true }
+                )
+
+                SettingsRow(
+                    icon = Icons.Rounded.PrivacyTip,
+                    title = "Privacy",
+                    subtitle = "How Gothwad Mail handles your mail and tokens",
+                    onClick = onOpenPrivacyPolicy
+                )
             }
         }
+    }
+
+    if (showRetentionDialog) {
+        AlertDialog(
+            onDismissRequest = { showRetentionDialog = false },
+            title = { Text("Mailbox retention") },
+            text = {
+                Column {
+                    RetentionPolicy.entries.forEach { policy ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onUpdateRetention(policy)
+                                    showRetentionDialog = false
+                                }
+                                .testTag("retention_${policy.serverValue}")
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = retention == policy,
+                                onClick = {
+                                    onUpdateRetention(policy)
+                                    showRetentionDialog = false
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(policy.label)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showRetentionDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (showSignOutDialog) {
+        AlertDialog(
+            onDismissRequest = { showSignOutDialog = false },
+            title = { Text("Sign out of this account?") },
+            text = {
+                Text(
+                    "Your Gothwad Mail tokens will be removed from this device. " +
+                        "The Mail grant stays active in your Gothwad Account, so other devices keep working."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showSignOutDialog = false
+                        onSignOutOfMail()
+                    }
+                ) { Text("Sign out") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSignOutDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (showRemoveDialog) {
+        AlertDialog(
+            onDismissRequest = { showRemoveDialog = false },
+            title = { Text("Remove account from this device?") },
+            text = {
+                Text(
+                    "The account and its cached messages are deleted from this device, and every " +
+                        "installed Gothwad app is notified. Your Gothwad Account itself is not affected."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showRemoveDialog = false
+                        onRemoveAccountFromDevice()
+                    }
+                ) { Text("Remove") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRemoveDialog = false }) { Text("Cancel") }
+            }
+        )
     }
 
     if (showThemeDialog) {

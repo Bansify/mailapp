@@ -15,20 +15,20 @@ class MailTypeConverters {
     }
 
     @TypeConverter
-    fun fromThreadMessages(messages: List<ThreadMessage>): String =
-        json.encodeToString(messages)
+    fun fromThreadMessages(messages: List<ThreadMessage>): String = json.encodeToString(messages)
 
     @TypeConverter
     fun toThreadMessages(raw: String): List<ThreadMessage> =
-        if (raw.isBlank()) emptyList() else json.decodeFromString(raw)
+        if (raw.isBlank()) emptyList() else runCatching { json.decodeFromString<List<ThreadMessage>>(raw) }
+            .getOrDefault(emptyList())
 
     @TypeConverter
-    fun fromStringList(items: List<String>): String =
-        json.encodeToString(items)
+    fun fromStringList(items: List<String>): String = json.encodeToString(items)
 
     @TypeConverter
     fun toStringList(raw: String): List<String> =
-        if (raw.isBlank()) emptyList() else json.decodeFromString(raw)
+        if (raw.isBlank()) emptyList() else runCatching { json.decodeFromString<List<String>>(raw) }
+            .getOrDefault(emptyList())
 
     @TypeConverter
     fun fromMailFolder(folder: MailFolder): String = folder.name

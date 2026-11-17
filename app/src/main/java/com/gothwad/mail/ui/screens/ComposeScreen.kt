@@ -88,7 +88,7 @@ fun ComposeScreen(
     activeAccount: MailAccountEntity?,
     allAccounts: List<MailAccountEntity>,
     onBackAndSaveDraft: (
-        draftId: Long?,
+        draftId: String?,
         fromAccount: MailAccountEntity,
         to: List<String>,
         cc: List<String>,
@@ -98,8 +98,8 @@ fun ComposeScreen(
     ) -> Unit,
     onDiscardAndExit: () -> Unit,
     onSend: (
-        draftId: Long?,
-        replyToThreadId: Long?,
+        draftId: String?,
+        replyToThreadId: String?,
         fromAccount: MailAccountEntity,
         to: List<String>,
         cc: List<String>,

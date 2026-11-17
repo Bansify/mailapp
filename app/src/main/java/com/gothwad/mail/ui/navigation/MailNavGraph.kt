@@ -2,7 +2,9 @@ package com.gothwad.mail.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -12,7 +14,9 @@ import com.gothwad.mail.ui.screens.ComposeScreen
 import com.gothwad.mail.ui.screens.InboxScreen
 import com.gothwad.mail.ui.screens.SearchScreen
 import com.gothwad.mail.ui.screens.SettingsScreen
+import com.gothwad.mail.ui.screens.SignedOutScreen
 import com.gothwad.mail.ui.screens.ThreadDetailScreen
+import com.gothwad.mail.ui.state.AuthScreenState
 import com.gothwad.mail.ui.state.ComposeInitialData
 import com.gothwad.mail.ui.state.MailUiState
 import com.gothwad.mail.ui.viewmodel.MailViewModel
@@ -22,12 +26,12 @@ import kotlinx.serialization.Serializable
 data object InboxRoute
 
 @Serializable
-data class ThreadDetailRoute(val threadId: Long)
+data class ThreadDetailRoute(val threadId: String)
 
 @Serializable
 data class ComposeRoute(
-    val draftId: Long? = null,
-    val replyToThreadId: Long? = null,
+    val draftId: String? = null,
+    val replyToThreadId: String? = null,
     val replyAll: Boolean = false,
     val forward: Boolean = false
 )
@@ -38,12 +42,43 @@ data object SearchRoute
 @Serializable
 data object SettingsRoute
 
+@Serializable
+data object SignedOutRoute
+
+/**
+ * Root navigation.
+ *
+ * With no signed-in Gothwad account the app shows the Signed-Out welcome screen only; it never
+ * falls back to prototype data. Once an account holds a Mail grant the full mail experience is
+ * shown, with the same Material 3 drawer, bottom navigation and adaptive two-pane layout as before.
+ */
 @Composable
 fun MailNavGraph(
     viewModel: MailViewModel,
     uiState: MailUiState
 ) {
     val navController = rememberNavController()
+    val context = LocalContext.current
+    val activity = context as? android.app.Activity
+
+    if (uiState.authState == AuthScreenState.SIGNED_OUT && uiState.allAccounts.isEmpty()) {
+        SignedOutScreen(
+            uiState = uiState,
+            onSignIn = {
+                if (activity != null) viewModel.signIn(activity)
+            },
+            onUseAnotherAccount = {
+                if (activity != null) viewModel.signIn(activity, chooseAccount = true)
+            },
+            onContinueAsDiscovered = { discovered ->
+                if (activity != null) viewModel.signInAsDiscovered(activity, discovered)
+            },
+            onOpenAccountManager = {
+                if (activity != null) viewModel.openAccountManager(activity)
+            }
+        )
+        return
+    }
 
     NavHost(
         navController = navController,
@@ -59,7 +94,7 @@ fun MailNavGraph(
                 onToggleQuickFilter = viewModel::toggleQuickFilter,
                 onRefresh = viewModel::refreshInbox,
                 onOpenThread = { thread ->
-                    viewModel.markThreadRead(thread.id, true)
+                    viewModel.openThread(thread.id)
                     navController.navigate(ThreadDetailRoute(thread.id))
                 },
                 onSelectTabletThread = viewModel::selectTabletThread,
@@ -105,7 +140,11 @@ fun MailNavGraph(
                 },
                 onOpenSettings = { navController.navigate(SettingsRoute) },
                 onSwitchAccount = viewModel::switchAccount,
-                onAddAccount = viewModel::addAccount,
+                onAddAccount = { activity?.let { viewModel.signIn(it, chooseAccount = true) } },
+                onManageAccount = { activity?.let { viewModel.openAccountManager(it) } },
+                onContinueAsDiscovered = { discovered ->
+                    activity?.let { viewModel.signInAsDiscovered(it, discovered) }
+                },
                 onCreateMeeting = viewModel::createNewMeeting,
                 onJoinMeeting = viewModel::joinMeeting,
                 onLeaveMeeting = viewModel::leaveMeeting
@@ -148,7 +187,7 @@ fun MailNavGraph(
             val sourceThread by if (targetId != null) {
                 viewModel.observeThread(targetId).collectAsStateWithLifecycle(initialValue = null)
             } else {
-                remember { androidx.compose.runtime.mutableStateOf(null) }
+                remember { mutableStateOf(null) }
             }
 
             if (targetId == null || sourceThread != null) {
@@ -200,7 +239,7 @@ fun MailNavGraph(
                 onClearHistory = viewModel::clearSearchHistory,
                 onToggleFilter = viewModel::toggleSearchFilter,
                 onOpenThread = { thread ->
-                    viewModel.markThreadRead(thread.id, true)
+                    viewModel.openThread(thread.id)
                     navController.navigate(ThreadDetailRoute(thread.id))
                 },
                 onToggleStar = viewModel::toggleStar,
@@ -212,9 +251,16 @@ fun MailNavGraph(
             SettingsScreen(
                 settings = uiState.settings,
                 activeAccount = uiState.activeAccount,
+                retention = uiState.retention,
                 onBack = { navController.popBackStack() },
                 onUpdateSettings = viewModel::updateSettings,
-                onUpdateAccount = viewModel::updateAccountSettings
+                onUpdateAccount = viewModel::updateAccountSettings,
+                onUpdateRetention = viewModel::updateRetention,
+                onSignOutOfMail = { uiState.activeAccount?.let(viewModel::signOutOfMail) },
+                onRemoveAccountFromDevice = { uiState.activeAccount?.let(viewModel::removeAccountFromDevice) },
+                onDisconnectFromServer = { uiState.activeAccount?.let(viewModel::disconnectFromServer) },
+                onManageAccount = { activity?.let { viewModel.openAccountManager(it) } },
+                onOpenPrivacyPolicy = { navController.popBackStack() }
             )
         }
     }
