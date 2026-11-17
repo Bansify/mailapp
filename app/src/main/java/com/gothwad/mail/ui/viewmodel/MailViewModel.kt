@@ -414,18 +414,19 @@ class MailViewModel(
         viewModelScope.launch {
             _nativeAuth.update { state -> state.copy(busy = true, error = null) }
             val result = runCatching { auth.forgotPassword(username) }.getOrNull()
+            val sent = result?.ok == true
             _nativeAuth.update { state ->
                 state.copy(
                     busy = false,
-                    error = if (result?.ok == true) null else result?.error ?: "Could not send the reset link",
-                    hint = if (result?.ok == true) {
-                        result.message ?: "Check your recovery email for the reset link"
+                    error = if (sent) null else result?.error ?: "Could not send the reset link",
+                    hint = if (sent) {
+                        result?.message ?: "Check your recovery email for the reset link"
                     } else {
                         state.hint
                     },
                 )
             }
-            if (result?.ok == true) onSent(result.message ?: "Check your recovery email for the reset link")
+            if (sent) onSent(result?.message ?: "Check your recovery email for the reset link")
         }
     }
 
@@ -433,12 +434,13 @@ class MailViewModel(
         viewModelScope.launch {
             _nativeAuth.update { state -> state.copy(busy = true, error = null) }
             val result = runCatching { auth.resetPassword(token, password) }.getOrNull()
+            val updated = result?.ok == true
             _nativeAuth.update { state ->
                 state.copy(
                     busy = false,
-                    error = if (result?.ok == true) null else result?.error ?: "Could not reset the password",
-                    step = if (result?.ok == true) NativeAuthStep.IDENTIFIER else state.step,
-                    hint = if (result?.ok == true) "Password updated. Sign in with your new password." else state.hint,
+                    error = if (updated) null else result?.error ?: "Could not reset the password",
+                    step = if (updated) NativeAuthStep.IDENTIFIER else state.step,
+                    hint = if (updated) "Password updated. Sign in with your new password." else state.hint,
                 )
             }
         }
@@ -465,7 +467,7 @@ class MailViewModel(
         auth.signIn(activity, chooseAccount = chooseAccount)
     }
 
-    /** One-tap sign-in for an account discovered on this device. */
+    /** Legacy browser one-tap sign-in; the silent path is [signInSilently]. */
     fun signInAsDiscovered(activity: android.app.Activity, discovered: DiscoveredAccount) {
         auth.signInAsDiscovered(activity, discovered)
     }
