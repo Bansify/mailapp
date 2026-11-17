@@ -126,9 +126,14 @@ class MailAuthSessionManager(
     suspend fun completeLogin(callbackUrl: String): MailAuthAccount {
         val (pending, params, epoch) = sessionMutex {
             check(!corrupted) { "Account storage is corrupted" }
-            val pending = data.pending ?: throw LoginCancelledException()
+            // No usable pending login: expired, already consumed, or superseded. This is a
+            // distinct, user-explainable state, not "the user cancelled in the browser".
+            val pending = data.pending ?: throw PendingLoginUnavailableException()
             val age = clock() - pending.createdAt
-            require(age in 0..PENDING_LOGIN_TTL_MILLIS) { "The sign-in attempt expired; start again" }
+            if (age !in 0..PENDING_LOGIN_TTL_MILLIS) {
+                save(data.copy(pending = null))
+                throw PendingLoginUnavailableException()
+            }
             val result = CallbackValidator.validate(callbackUrl, pending.redirectUri, pending.state)
             // Consume the pending login before any network work so a replay is impossible.
             save(data.copy(pending = null))

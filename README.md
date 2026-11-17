@@ -126,6 +126,25 @@ Release builds are never signed with the debug key. `.github/workflows/release.y
 Release APK, Debug APK and Play Store AAB and signs the release artifacts with
 `RELEASE_KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD`.
 
+## Troubleshooting sign-in on a device
+
+**The browser returns to the app but the welcome screen appears again.** The callback activity
+used to run the token exchange in its own `lifecycleScope`; that scope is cancelled in `onDestroy`
+as soon as the activity finishes itself after the redirect, which aborted the exchange and dropped
+the fresh account (visible as a brief avatar flash before the welcome screen returns). The exchange
+now runs on the application-owned scope, so it always completes. If you still see the welcome
+screen, the app shows an explicit reason ("That sign-in attempt expired…", "The sign-in response
+was invalid…") instead of failing silently.
+
+**The redirect opens Chrome instead of the app.** The App Link
+`https://mail.gothwadtech.com/oauth/callback` is only verified when
+`https://mail.gothwadtech.com/.well-known/assetlinks.json` lists this app's signing certificate
+SHA-256. Until it does, the `com.gothwad.mail:/oauth/callback` custom scheme still returns to the
+app; the release workflow prints the certificate SHA-256 in its step summary for exactly this.
+
+**The seed values below are not secrets.** `client_id` is public; the redirect must stay an App
+Link plus the reverse-DNS custom scheme, and the PKCE `code_verifier` never leaves the device.
+
 ## Manual device checks
 
 1. Cold start with no signed-in account shows the **Welcome to Gothwad Mail** screen (no demo

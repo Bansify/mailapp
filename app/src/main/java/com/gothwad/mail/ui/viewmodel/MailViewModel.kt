@@ -243,6 +243,7 @@ class MailViewModel(
     private fun describeFailure(failure: MailAuthFailure): String = when (failure) {
         MailAuthFailure.BrowserUnavailable -> "No browser is available to sign in"
         MailAuthFailure.InvalidCallback -> "The sign-in response was invalid. Try again."
+        MailAuthFailure.CallbackExpired -> "That sign-in attempt expired. Tap Sign in with Gothwad to try again."
         MailAuthFailure.LoginCancelled -> "Sign-in was cancelled"
         MailAuthFailure.SessionExpired -> "Your Gothwad Account session expired. Sign in again."
         MailAuthFailure.StorageUnavailable -> "Encrypted account storage is unavailable"

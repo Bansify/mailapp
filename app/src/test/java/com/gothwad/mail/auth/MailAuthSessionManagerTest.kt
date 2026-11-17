@@ -152,7 +152,27 @@ class MailAuthSessionManagerTest {
         val result = runCatching { session.completeLogin("$redirect?code=abc&state=${pending.state}") }
 
         assertTrue(result.isFailure)
+        // Reported as an expired attempt, so the UI can say "tap sign in again" instead of
+        // claiming the user cancelled in the browser.
+        assertTrue(result.exceptionOrNull() is PendingLoginUnavailableException)
         assertEquals(0, oauth.exchangeCalls.get())
+    }
+
+    @Test
+    fun `a replayed callback with no pending login reports an expired attempt`() = runTest {
+        val store = InMemoryTokenStore()
+        val oauth = FakeOAuthService()
+        val session = manager(store, oauth)
+        session.load()
+        val pending = session.beginLogin()
+        session.completeLogin("$redirect?code=abc&state=${pending.state}")
+
+        // Chrome can deliver the same redirect twice; the second delivery has no pending login.
+        val replay = runCatching { session.completeLogin("$redirect?code=abc&state=${pending.state}") }
+
+        assertTrue(replay.exceptionOrNull() is PendingLoginUnavailableException)
+        assertEquals("The code must be exchanged exactly once", 1, oauth.exchangeCalls.get())
+        assertEquals(1, session.accounts().size)
     }
 
     @Test

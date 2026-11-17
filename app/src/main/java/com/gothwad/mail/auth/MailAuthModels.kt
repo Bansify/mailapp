@@ -103,6 +103,7 @@ enum class DisconnectOutcome {
 /** Failure modes surfaced to the signed-out and settings screens. */
 enum class MailAuthFailure {
     BrowserUnavailable,
+    CallbackExpired,
     InvalidCallback,
     LoginCancelled,
     SessionExpired,
@@ -124,6 +125,14 @@ class InvalidCredentialException(message: String = "The Gothwad Account credenti
 /** Thrown when the encrypted store cannot be unlocked or write. */
 class AuthStorageException(message: String, cause: Throwable? = null) :
     java.io.IOException(message, cause)
+
+/**
+ * Thrown when a callback arrives but no usable pending login exists: the ten-minute window
+ * expired, the state was already consumed, or another sign-in superseded it.
+ */
+class PendingLoginUnavailableException(
+    message: String = "The sign-in attempt is no longer valid; please sign in again",
+) : java.io.IOException(message)
 
 /** Thrown when the login was cancelled in the browser (`error=access_denied`). */
 class LoginCancelledException : java.io.IOException("Sign-in was cancelled")
