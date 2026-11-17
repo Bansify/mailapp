@@ -87,6 +87,13 @@ jobs:
           PY
             exit 1
           fi
+      - name: Upload full build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-gradle-log
+          path: ${{ runner.temp }}/ci-gradle.log
+          if-no-files-found: ignore
       - name: Upload test reports and debug APK
         if: always()
         uses: actions/upload-artifact@v4
