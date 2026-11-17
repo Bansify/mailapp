@@ -104,7 +104,7 @@ enum class NativeAuthStep { IDENTIFIER, PASSWORD, MFA, SIGN_UP, RECOVERY }
 /**
  * State of the in-app native sign-in / sign-up / 2FA sheet.
  *
- * The sheet talks to `/api/mobile/auth/*` directly, so it works with no browser installed.
+ * The sheet talks to `/api/mobile/auth/{endpoint}` directly, so it works with no browser installed.
  * [hint] carries non-error information (e.g. "check your recovery email") and [error] is shown
  * as a failure.
  */

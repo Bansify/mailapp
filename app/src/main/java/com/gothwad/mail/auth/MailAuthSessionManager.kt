@@ -196,7 +196,7 @@ class MailAuthSessionManager(
     }
 
     /**
-     * Completes sign-in from direct native credentials (`/api/mobile/auth/*`).
+     * Completes sign-in from direct native credentials (`/api/mobile/auth/{endpoint}`).
      *
      * Nothing is persisted until [tokens] and [userInfo] are both available, so a failed profile
      * fetch cannot leave a half-written account behind.

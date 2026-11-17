@@ -9,7 +9,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
 /**
- * Direct native authentication against `https://accounts.gothwadtech.com/api/mobile/auth/*`.
+ * Direct native authentication against `https://accounts.gothwadtech.com/api/mobile/auth/{endpoint}`.
  *
  * This is the primary sign-in path: it needs no browser, no Custom Tabs and no redirect, so it
  * works on a device where Chrome (or any browser) is missing. The OAuth 2.0 + PKCE browser flow

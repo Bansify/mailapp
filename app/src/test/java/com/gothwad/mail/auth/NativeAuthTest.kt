@@ -14,7 +14,7 @@ import org.junit.Before
 import org.junit.Test
 
 /**
- * Covers the direct native `/api/mobile/auth/*` client and the session manager paths that adopt
+ * Covers the direct native `/api/mobile/auth/{endpoint}` client and the session manager paths that adopt
  * the tokens it returns, so sign-in works without any browser.
  */
 class NativeAuthTest {

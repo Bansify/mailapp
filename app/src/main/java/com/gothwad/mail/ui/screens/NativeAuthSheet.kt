@@ -50,7 +50,7 @@ import com.gothwad.mail.ui.state.NativeAuthUiState
 /**
  * 100% native Jetpack Compose sign-in, sign-up, two-factor and password-recovery sheet.
  *
- * It talks to `https://accounts.gothwadtech.com/api/mobile/auth/*` through the view model, so
+ * It talks to `https://accounts.gothwadtech.com/api/mobile/auth/{endpoint}` through the view model, so
  * Gothwad Mail can sign in on a device with no browser at all. The browser flow stays available
  * from the same screen as the secondary "Sign in with browser" button.
  */

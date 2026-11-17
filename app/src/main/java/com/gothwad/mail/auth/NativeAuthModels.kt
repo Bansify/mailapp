@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * Wire models for the Gothwad Accounts native mobile auth API (`/api/mobile/auth/*`).
+ * Wire models for the Gothwad Accounts native mobile auth API (`/api/mobile/auth/{endpoint}`).
  *
  * These endpoints authenticate straight from the app over OkHttp, so Gothwad Mail can sign a user
  * in even when the device has no browser installed. The browser (Custom Tabs) OAuth flow stays
