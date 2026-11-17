@@ -90,74 +90,108 @@ jobs:
           PY
             exit 1
           fi
-      - name: Kotlin errors bucket 1
-        if: failure()
-        run: |
-          python3 - <<'PY'
-          import os, pathlib
-          src = pathlib.Path(os.environ["RUNNER_TEMP"], "kotlin-errors.txt")
-          lines = [l for l in src.read_text(encoding="utf-8").splitlines() if l.strip()] if src.exists() else []
-          chunk = lines[10:20]
-          if lines and 1 == 1:
-              print(f"::notice title=Kotlin error count::{len(lines)} errors")
-          for one in chunk:
-              print("::error title=Kotlin::" + one.replace("%", "%25").replace("\r", "")[:900])
-          PY
 
-      - name: Kotlin errors bucket 2
-        if: failure()
-        run: |
-          python3 - <<'PY'
-          import os, pathlib
-          src = pathlib.Path(os.environ["RUNNER_TEMP"], "kotlin-errors.txt")
-          lines = [l for l in src.read_text(encoding="utf-8").splitlines() if l.strip()] if src.exists() else []
-          chunk = lines[20:30]
-          if lines and 2 == 1:
-              print(f"::notice title=Kotlin error count::{len(lines)} errors")
-          for one in chunk:
-              print("::error title=Kotlin::" + one.replace("%", "%25").replace("\r", "")[:900])
-          PY
 
-      - name: Kotlin errors bucket 3
-        if: failure()
-        run: |
-          python3 - <<'PY'
-          import os, pathlib
-          src = pathlib.Path(os.environ["RUNNER_TEMP"], "kotlin-errors.txt")
-          lines = [l for l in src.read_text(encoding="utf-8").splitlines() if l.strip()] if src.exists() else []
-          chunk = lines[30:40]
-          if lines and 3 == 1:
-              print(f"::notice title=Kotlin error count::{len(lines)} errors")
-          for one in chunk:
-              print("::error title=Kotlin::" + one.replace("%", "%25").replace("\r", "")[:900])
-          PY
 
-      - name: Kotlin errors bucket 4
-        if: failure()
-        run: |
-          python3 - <<'PY'
-          import os, pathlib
-          src = pathlib.Path(os.environ["RUNNER_TEMP"], "kotlin-errors.txt")
-          lines = [l for l in src.read_text(encoding="utf-8").splitlines() if l.strip()] if src.exists() else []
-          chunk = lines[40:50]
-          if lines and 4 == 1:
-              print(f"::notice title=Kotlin error count::{len(lines)} errors")
-          for one in chunk:
-              print("::error title=Kotlin::" + one.replace("%", "%25").replace("\r", "")[:900])
-          PY
 
-      - name: Kotlin errors bucket 5
+      - name: Kotlin errors NativeAuthModels
         if: failure()
         run: |
           python3 - <<'PY'
           import os, pathlib
           src = pathlib.Path(os.environ["RUNNER_TEMP"], "kotlin-errors.txt")
           lines = [l for l in src.read_text(encoding="utf-8").splitlines() if l.strip()] if src.exists() else []
-          chunk = lines[50:60]
-          if lines and 5 == 1:
-              print(f"::notice title=Kotlin error count::{len(lines)} errors")
-          for one in chunk:
-              print("::error title=Kotlin::" + one.replace("%", "%25").replace("\r", "")[:900])
+          mine = [l for l in lines if "NativeAuthModels.kt" in l][:10]
+          for one in mine:
+              print("::error title=Kotlin NativeAuthModels::" + one.replace("%", "%25").replace("\r", "")[:900])
+          PY
+      - name: Kotlin errors NativeAuthClient
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import os, pathlib
+          src = pathlib.Path(os.environ["RUNNER_TEMP"], "kotlin-errors.txt")
+          lines = [l for l in src.read_text(encoding="utf-8").splitlines() if l.strip()] if src.exists() else []
+          mine = [l for l in lines if "NativeAuthClient.kt" in l][:10]
+          for one in mine:
+              print("::error title=Kotlin NativeAuthClient::" + one.replace("%", "%25").replace("\r", "")[:900])
+          PY
+      - name: Kotlin errors GothwadMailAuth
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import os, pathlib
+          src = pathlib.Path(os.environ["RUNNER_TEMP"], "kotlin-errors.txt")
+          lines = [l for l in src.read_text(encoding="utf-8").splitlines() if l.strip()] if src.exists() else []
+          mine = [l for l in lines if "GothwadMailAuth.kt" in l][:10]
+          for one in mine:
+              print("::error title=Kotlin GothwadMailAuth::" + one.replace("%", "%25").replace("\r", "")[:900])
+          PY
+      - name: Kotlin errors MailAuthSessionManager
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import os, pathlib
+          src = pathlib.Path(os.environ["RUNNER_TEMP"], "kotlin-errors.txt")
+          lines = [l for l in src.read_text(encoding="utf-8").splitlines() if l.strip()] if src.exists() else []
+          mine = [l for l in lines if "MailAuthSessionManager.kt" in l][:10]
+          for one in mine:
+              print("::error title=Kotlin MailAuthSessionManager::" + one.replace("%", "%25").replace("\r", "")[:900])
+          PY
+      - name: Kotlin errors MailOAuthClient
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import os, pathlib
+          src = pathlib.Path(os.environ["RUNNER_TEMP"], "kotlin-errors.txt")
+          lines = [l for l in src.read_text(encoding="utf-8").splitlines() if l.strip()] if src.exists() else []
+          mine = [l for l in lines if "MailOAuthClient.kt" in l][:10]
+          for one in mine:
+              print("::error title=Kotlin MailOAuthClient::" + one.replace("%", "%25").replace("\r", "")[:900])
+          PY
+      - name: Kotlin errors MailViewModel
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import os, pathlib
+          src = pathlib.Path(os.environ["RUNNER_TEMP"], "kotlin-errors.txt")
+          lines = [l for l in src.read_text(encoding="utf-8").splitlines() if l.strip()] if src.exists() else []
+          mine = [l for l in lines if "MailViewModel.kt" in l][:10]
+          for one in mine:
+              print("::error title=Kotlin MailViewModel::" + one.replace("%", "%25").replace("\r", "")[:900])
+          PY
+      - name: Kotlin errors NativeAuthSheet
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import os, pathlib
+          src = pathlib.Path(os.environ["RUNNER_TEMP"], "kotlin-errors.txt")
+          lines = [l for l in src.read_text(encoding="utf-8").splitlines() if l.strip()] if src.exists() else []
+          mine = [l for l in lines if "NativeAuthSheet.kt" in l][:10]
+          for one in mine:
+              print("::error title=Kotlin NativeAuthSheet::" + one.replace("%", "%25").replace("\r", "")[:900])
+          PY
+      - name: Kotlin errors SignedOutScreen
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import os, pathlib
+          src = pathlib.Path(os.environ["RUNNER_TEMP"], "kotlin-errors.txt")
+          lines = [l for l in src.read_text(encoding="utf-8").splitlines() if l.strip()] if src.exists() else []
+          mine = [l for l in lines if "SignedOutScreen.kt" in l][:10]
+          for one in mine:
+              print("::error title=Kotlin SignedOutScreen::" + one.replace("%", "%25").replace("\r", "")[:900])
+          PY
+      - name: Kotlin errors MailNavGraph
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import os, pathlib
+          src = pathlib.Path(os.environ["RUNNER_TEMP"], "kotlin-errors.txt")
+          lines = [l for l in src.read_text(encoding="utf-8").splitlines() if l.strip()] if src.exists() else []
+          mine = [l for l in lines if "MailNavGraph.kt" in l][:10]
+          for one in mine:
+              print("::error title=Kotlin MailNavGraph::" + one.replace("%", "%25").replace("\r", "")[:900])
           PY
       - name: Upload full build log on failure
         if: failure()
