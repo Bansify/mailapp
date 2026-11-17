@@ -138,14 +138,27 @@ data class AuthConfig(
             "redirect_uri must be an https App Link or a reverse-DNS custom scheme"
         }
         val accounts = java.net.URI(accountsBaseUrl)
-        require(accounts.scheme == "https" && !accounts.host.isNullOrBlank()) {
-            "accounts base must be HTTPS"
-        }
+        require(isAllowedBase(accounts)) { "accounts base must be HTTPS" }
         val mail = java.net.URI(mailApiBaseUrl)
-        require(mail.scheme == "https" && !mail.host.isNullOrBlank()) { "mail base must be HTTPS" }
+        require(isAllowedBase(mail)) { "mail base must be HTTPS" }
     }
 
     companion object {
+        /**
+         * Only `https` is accepted for real hosts. Plain `http` is tolerated for loopback
+         * addresses so unit tests can point the client at a local `MockWebServer`; a loopback
+         * origin cannot be observed by another device on the network.
+         */
+        private fun isAllowedBase(uri: java.net.URI): Boolean {
+            val host = uri.host ?: return false
+            if (host.isBlank()) return false
+            return when (uri.scheme) {
+                "https" -> true
+                "http" -> host == "127.0.0.1" || host == "localhost" || host == "::1" || host == "[::1]"
+                else -> false
+            }
+        }
+
         /** Production configuration for the `gothwad-mail` public client. */
         val DEFAULT: AuthConfig = AuthConfig(
             packageName = GothwadEndpoints.PACKAGE_NAME,
