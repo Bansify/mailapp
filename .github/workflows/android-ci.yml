@@ -77,9 +77,12 @@ jobs:
           excerpt = "\n".join(errors + ([""] if errors else []) + tail)[-6000:]
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
               f.write("### Gradle CI failure\n\n```text\n" + excerpt + "\n```\n")
-          # One annotation per compiler error: a single joined annotation is truncated by the
-          # checks API, which made the first (root-cause) error invisible.
-          for line in errors:
+          # The checks API only keeps the first ten annotations of a step, so the errors are
+          # stashed here and emitted by the bucketed steps below.
+          pathlib.Path(os.environ["RUNNER_TEMP"], "kotlin-errors.txt").write_text(
+              "\n".join(errors), encoding="utf-8"
+          )
+          for line in errors[:10]:
               one = line.replace("%", "%25").replace("\r", "").replace("\n", " ")[:900]
               print(f"::error title=Kotlin::{one}")
           escaped = tail[:1500].replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
@@ -87,6 +90,75 @@ jobs:
           PY
             exit 1
           fi
+      - name: Kotlin errors bucket 1
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import os, pathlib
+          src = pathlib.Path(os.environ["RUNNER_TEMP"], "kotlin-errors.txt")
+          lines = [l for l in src.read_text(encoding="utf-8").splitlines() if l.strip()] if src.exists() else []
+          chunk = lines[10:20]
+          if lines and 1 == 1:
+              print(f"::notice title=Kotlin error count::{len(lines)} errors")
+          for one in chunk:
+              print("::error title=Kotlin::" + one.replace("%", "%25").replace("\r", "")[:900])
+          PY
+
+      - name: Kotlin errors bucket 2
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import os, pathlib
+          src = pathlib.Path(os.environ["RUNNER_TEMP"], "kotlin-errors.txt")
+          lines = [l for l in src.read_text(encoding="utf-8").splitlines() if l.strip()] if src.exists() else []
+          chunk = lines[20:30]
+          if lines and 2 == 1:
+              print(f"::notice title=Kotlin error count::{len(lines)} errors")
+          for one in chunk:
+              print("::error title=Kotlin::" + one.replace("%", "%25").replace("\r", "")[:900])
+          PY
+
+      - name: Kotlin errors bucket 3
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import os, pathlib
+          src = pathlib.Path(os.environ["RUNNER_TEMP"], "kotlin-errors.txt")
+          lines = [l for l in src.read_text(encoding="utf-8").splitlines() if l.strip()] if src.exists() else []
+          chunk = lines[30:40]
+          if lines and 3 == 1:
+              print(f"::notice title=Kotlin error count::{len(lines)} errors")
+          for one in chunk:
+              print("::error title=Kotlin::" + one.replace("%", "%25").replace("\r", "")[:900])
+          PY
+
+      - name: Kotlin errors bucket 4
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import os, pathlib
+          src = pathlib.Path(os.environ["RUNNER_TEMP"], "kotlin-errors.txt")
+          lines = [l for l in src.read_text(encoding="utf-8").splitlines() if l.strip()] if src.exists() else []
+          chunk = lines[40:50]
+          if lines and 4 == 1:
+              print(f"::notice title=Kotlin error count::{len(lines)} errors")
+          for one in chunk:
+              print("::error title=Kotlin::" + one.replace("%", "%25").replace("\r", "")[:900])
+          PY
+
+      - name: Kotlin errors bucket 5
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import os, pathlib
+          src = pathlib.Path(os.environ["RUNNER_TEMP"], "kotlin-errors.txt")
+          lines = [l for l in src.read_text(encoding="utf-8").splitlines() if l.strip()] if src.exists() else []
+          chunk = lines[50:60]
+          if lines and 5 == 1:
+              print(f"::notice title=Kotlin error count::{len(lines)} errors")
+          for one in chunk:
+              print("::error title=Kotlin::" + one.replace("%", "%25").replace("\r", "")[:900])
+          PY
       - name: Upload full build log on failure
         if: failure()
         uses: actions/upload-artifact@v4
