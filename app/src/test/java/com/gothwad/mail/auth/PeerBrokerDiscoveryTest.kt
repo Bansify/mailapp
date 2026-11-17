@@ -4,6 +4,7 @@ import com.gothwad.mail.auth.broker.BrokerPolicy
 import com.gothwad.mail.auth.broker.BrokerTrustPolicy
 import com.gothwad.mail.auth.broker.DirectoryAccountRecord
 import com.gothwad.mail.auth.broker.DirectorySnapshot
+import com.gothwad.mail.auth.broker.DiscoveredAccount
 import com.gothwad.mail.auth.broker.KnownGothwadApps
 import com.gothwad.mail.auth.broker.PeerBrokerClient
 import com.gothwad.mail.auth.broker.BrokerIpcContract
