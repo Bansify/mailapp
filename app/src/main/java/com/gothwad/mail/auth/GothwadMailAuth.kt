@@ -217,13 +217,15 @@ class GothwadMailAuth(
         val result = try {
             withContext(Dispatchers.IO) { call() }
         } catch (error: MailOAuthException) {
-            mutableFailure.value = if (error.rejected) MailAuthFailure.SessionExpired else MailAuthFailure.Unavailable
+            sessionManager.reportFailure(
+                if (error.rejected) MailAuthFailure.SessionExpired else MailAuthFailure.Unavailable,
+            )
             return NativeAuthOutcome.Failed(
                 message = (error.message ?: "Could not reach Gothwad Accounts"),
                 rejected = error.rejected,
             )
         } catch (error: Exception) {
-            mutableFailure.value = MailAuthFailure.Unavailable
+            sessionManager.reportFailure(MailAuthFailure.Unavailable)
             return NativeAuthOutcome.Failed(
                 message = error.message ?: "Could not reach Gothwad Accounts",
                 rejected = false,
@@ -255,7 +257,7 @@ class GothwadMailAuth(
                 } catch (error: Exception) {
                     return NativeAuthOutcome.Failed("The account could not be stored on this device", false)
                 }
-                mutableFailure.value = null
+                sessionManager.clearFailure()
                 mutableEvents.emit(AuthEvent.SignedIn(account))
                 refreshDiscoveredAccounts()
                 NativeAuthOutcome.Success(account)

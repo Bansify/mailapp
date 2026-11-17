@@ -91,6 +91,11 @@ class MailAuthSessionManager(
         mutableFailure.value = null
     }
 
+    /** Publishes a sign-in failure so the signed-out screen can explain what happened. */
+    fun reportFailure(failure: MailAuthFailure?) {
+        mutableFailure.value = failure
+    }
+
     fun clearDisconnectOutcome() {
         mutableDisconnectOutcome.value = null
     }
