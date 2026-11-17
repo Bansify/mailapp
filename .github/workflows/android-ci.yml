@@ -41,7 +41,7 @@ jobs:
       - name: Unit tests, lint and debug APK
         run: |
           set -euo pipefail
-          if ./gradlew --no-daemon --max-workers=2 \
+          if ./gradlew --no-daemon --max-workers=2 --rerun-tasks \
             :app:testDebugUnitTest :app:lintDebug :app:assembleDebug \
             > "$RUNNER_TEMP/ci-gradle.log" 2>&1; then
             tail -n 30 "$RUNNER_TEMP/ci-gradle.log"
