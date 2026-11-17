@@ -170,6 +170,8 @@ fun SignedOutScreen(
                                 "Encrypted account storage is unavailable on this device."
                             com.gothwad.mail.auth.MailAuthFailure.InvalidCallback ->
                                 "The sign-in response was invalid. Please try again."
+                            com.gothwad.mail.auth.MailAuthFailure.CallbackExpired ->
+                                "That sign-in attempt expired. Tap Sign in with Gothwad to try again."
                             com.gothwad.mail.auth.MailAuthFailure.SessionExpired ->
                                 "Your Gothwad Account session expired. Sign in again."
                             else -> "Could not complete the sign-in. Please try again."

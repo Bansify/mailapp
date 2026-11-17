@@ -29,6 +29,64 @@ class CallbackValidatorTest {
         assertEquals("abc", result.code)
     }
 
+    /**
+     * The real device flow: `redirect_uri` is the App Link, but the web bridge on that page hands
+     * the query to the app over the custom scheme (see `public/oauth/callback/index.html` in the
+     * Worker repo). Both deliveries must validate against the same pending login.
+     */
+    @Test
+    fun `accepts a custom scheme delivery when the app link was registered`() {
+        val custom = GothwadEndpoints.REDIRECT_URI_CUSTOM_SCHEME
+        val result = CallbackValidator.validate(
+            callback = "$custom?code=auth-code&state=$state",
+            redirectUri = redirect,
+            state = state,
+            acceptedRedirectUris = listOf(redirect, custom),
+        )
+        assertEquals("auth-code", result.code)
+    }
+
+    @Test
+    fun `accepts an app link delivery when only the custom scheme is listed`() {
+        val custom = GothwadEndpoints.REDIRECT_URI_CUSTOM_SCHEME
+        val result = CallbackValidator.validate(
+            callback = "$redirect?code=auth-code&state=$state",
+            redirectUri = custom,
+            state = state,
+            acceptedRedirectUris = listOf(custom, redirect),
+        )
+        assertEquals("auth-code", result.code)
+    }
+
+    @Test
+    fun `a custom scheme delivery still rejects a foreign host and state`() {
+        val custom = GothwadEndpoints.REDIRECT_URI_CUSTOM_SCHEME
+        val accepted = listOf(redirect, custom)
+        // Wrong state over the otherwise acceptable scheme is still rejected.
+        assertTrue(
+            runCatching {
+                CallbackValidator.validate("$custom?code=abc&state=other", redirect, state, accepted)
+            }.isFailure,
+        )
+        // A foreign https host is never accepted, even though https is a registered scheme.
+        assertTrue(
+            runCatching {
+                CallbackValidator.validate(
+                    "https://evil.example.com/oauth/callback?code=abc&state=$state",
+                    redirect,
+                    state,
+                    accepted,
+                )
+            }.isFailure,
+        )
+        // The custom scheme must not accept a foreign path.
+        assertTrue(
+            runCatching {
+                CallbackValidator.validate("$custom/extra?code=abc&state=$state", redirect, state, accepted)
+            }.isFailure,
+        )
+    }
+
     @Test
     fun `rejects a callback with a different scheme`() {
         assertRejected("courier://mail.gothwadtech.com/oauth/callback?code=abc&state=$state")

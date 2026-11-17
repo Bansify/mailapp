@@ -152,7 +152,65 @@ class MailAuthSessionManagerTest {
         val result = runCatching { session.completeLogin("$redirect?code=abc&state=${pending.state}") }
 
         assertTrue(result.isFailure)
+        // Reported as an expired attempt, so the UI can say "tap sign in again" instead of
+        // claiming the user cancelled in the browser.
+        assertTrue(result.exceptionOrNull() is PendingLoginUnavailableException)
         assertEquals(0, oauth.exchangeCalls.get())
+    }
+
+    /**
+     * Reproduces the on-device flow end to end: sign-in starts with the App Link as `redirect_uri`,
+     * the browser is sent back to that App Link, and the App Link page bridges the query to the
+     * app over the custom scheme. It must complete with a signed-in account.
+     */
+    @Test
+    fun `login completes when the redirect arrives over the custom scheme`() = runTest {
+        val store = InMemoryTokenStore()
+        val session = manager(store, FakeOAuthService())
+        session.load()
+        val pending = session.beginLogin()
+
+        assertEquals(GothwadEndpoints.REDIRECT_URI_APP_LINK, pending.redirectUri)
+
+        val account = session.completeLogin(
+            GothwadEndpoints.REDIRECT_URI_CUSTOM_SCHEME + "?code=abc&state=" + pending.state,
+        )
+
+        assertEquals("user-1", account.userId)
+        assertEquals(listOf("user-1"), session.accounts().map { it.userId })
+        assertTrue(session.currentSession().credentials.isNotEmpty())
+        assertEquals(1, store.value.credentials.size)
+    }
+
+    @Test
+    fun `login completes when the redirect arrives over the app link`() = runTest {
+        val store = InMemoryTokenStore()
+        val session = manager(store, FakeOAuthService())
+        session.load()
+        val pending = session.beginLogin()
+
+        val account = session.completeLogin(
+            GothwadEndpoints.REDIRECT_URI_APP_LINK + "?code=abc&state=" + pending.state,
+        )
+
+        assertEquals("user-1", account.userId)
+    }
+
+    @Test
+    fun `a replayed callback with no pending login reports an expired attempt`() = runTest {
+        val store = InMemoryTokenStore()
+        val oauth = FakeOAuthService()
+        val session = manager(store, oauth)
+        session.load()
+        val pending = session.beginLogin()
+        session.completeLogin("$redirect?code=abc&state=${pending.state}")
+
+        // Chrome can deliver the same redirect twice; the second delivery has no pending login.
+        val replay = runCatching { session.completeLogin("$redirect?code=abc&state=${pending.state}") }
+
+        assertTrue(replay.exceptionOrNull() is PendingLoginUnavailableException)
+        assertEquals("The code must be exchanged exactly once", 1, oauth.exchangeCalls.get())
+        assertEquals(1, session.accounts().size)
     }
 
     @Test

@@ -126,10 +126,25 @@ class MailAuthSessionManager(
     suspend fun completeLogin(callbackUrl: String): MailAuthAccount {
         val (pending, params, epoch) = sessionMutex {
             check(!corrupted) { "Account storage is corrupted" }
-            val pending = data.pending ?: throw LoginCancelledException()
+            // No usable pending login: expired, already consumed, or superseded. This is a
+            // distinct, user-explainable state, not "the user cancelled in the browser".
+            val pending = data.pending ?: throw PendingLoginUnavailableException()
             val age = clock() - pending.createdAt
-            require(age in 0..PENDING_LOGIN_TTL_MILLIS) { "The sign-in attempt expired; start again" }
-            val result = CallbackValidator.validate(callbackUrl, pending.redirectUri, pending.state)
+            if (age !in 0..PENDING_LOGIN_TTL_MILLIS) {
+                save(data.copy(pending = null))
+                throw PendingLoginUnavailableException()
+            }
+            // `pending.redirectUri` stays the value sent to the token endpoint (the App Link);
+            // the callback may legitimately arrive over either registered delivery URI.
+            val result = CallbackValidator.validate(
+                callback = callbackUrl,
+                redirectUri = pending.redirectUri,
+                state = pending.state,
+                acceptedRedirectUris = listOf(
+                    pending.redirectUri,
+                    GothwadEndpoints.REDIRECT_URI_CUSTOM_SCHEME,
+                ),
+            )
             // Consume the pending login before any network work so a replay is impossible.
             save(data.copy(pending = null))
             Triple(pending, result, generation)

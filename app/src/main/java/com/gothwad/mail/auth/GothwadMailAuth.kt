@@ -70,6 +70,9 @@ class GothwadMailAuth(
     private val mutableEvents = MutableSharedFlow<AuthEvent>(extraBufferCapacity = 8)
     val events: SharedFlow<AuthEvent> = mutableEvents.asSharedFlow()
 
+    /** Guards against a redirect being delivered twice (Custom Tabs + App Link). */
+    private val callbackBudget = CallbackBudget()
+
 
     /**
      * Peer discovery is enabled only for verification-compatible builds: debug builds accept debug
@@ -132,12 +135,30 @@ class GothwadMailAuth(
         }
     }
 
+    /**
+     * Fire-and-forget callback entry point for [AccountCallbackActivity].
+     *
+     * The work runs on the application-owned [scope], never on the calling activity's lifecycle,
+     * because the callback activity finishes immediately after the redirect is handed over.
+     */
+    fun acceptCallback(callbackUrl: String) {
+        scope.launch { handleCallback(callbackUrl) }
+    }
+
     /** Completes a sign-in from the callback activity. */
     suspend fun handleCallback(callbackUrl: String) {
+        if (!callbackBudget.tryAcquire(callbackUrl)) {
+            mutableEvents.emit(AuthEvent.Failed(MailAuthFailure.CallbackExpired))
+            return
+        }
         try {
             val account = sessionManager.completeLogin(callbackUrl)
             mutableEvents.emit(AuthEvent.SignedIn(account))
             refreshDiscoveredAccounts()
+        } catch (error: PendingLoginUnavailableException) {
+            // The browser came back with a code but there is no usable pending login any more:
+            // the attempt expired, was already consumed, or was superseded by another sign-in.
+            mutableEvents.emit(AuthEvent.Failed(MailAuthFailure.CallbackExpired))
         } catch (error: LoginCancelledException) {
             mutableEvents.emit(AuthEvent.LoginCancelled)
         } catch (error: CallbackValidator.InvalidCallbackException) {
