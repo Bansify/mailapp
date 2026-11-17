@@ -56,7 +56,7 @@ sealed interface AuthEvent {
 class GothwadMailAuth(
     private val application: Application,
     config: AuthConfig = AuthConfig.DEFAULT,
-    oauth: MailOAuthService = MailOAuthClient(config),
+    private val oauth: MailOAuthService = MailOAuthClient(config),
     store: MailTokenStore = EncryptedTokenStore(application, config),
     private val nativeAuth: NativeAuthService = NativeAuthClient(config),
 ) : DirectoryHost, MailAccessTokenProvider {
@@ -241,7 +241,7 @@ class GothwadMailAuth(
                 // authoritative /oauth/userinfo so the persisted profile is never guessed.
                 val info: GothwadUserInfo = try {
                     withContext(Dispatchers.IO) {
-                        result.user?.toUserInfo()?.takeIf { it.username != null }
+                        result.user?.toUserInfo()?.takeIf { !it.username.isNullOrBlank() }
                             ?: oauth.userInfo(result.tokens.accessToken)
                     }
                 } catch (error: Exception) {
@@ -251,7 +251,7 @@ class GothwadMailAuth(
                     )
                 }
                 val account = try {
-                    sessionManager.completeNativeLogin(result.tokens, resolved)
+                    sessionManager.completeNativeLogin(result.tokens, info)
                 } catch (error: Exception) {
                     return NativeAuthOutcome.Failed("The account could not be stored on this device", false)
                 }
