@@ -158,6 +158,44 @@ class MailAuthSessionManagerTest {
         assertEquals(0, oauth.exchangeCalls.get())
     }
 
+    /**
+     * Reproduces the on-device flow end to end: sign-in starts with the App Link as `redirect_uri`,
+     * the browser is sent back to that App Link, and the App Link page bridges the query to the
+     * app over the custom scheme. It must complete with a signed-in account.
+     */
+    @Test
+    fun `login completes when the redirect arrives over the custom scheme`() = runTest {
+        val store = InMemoryTokenStore()
+        val session = manager(store, FakeOAuthService())
+        session.load()
+        val pending = session.beginLogin()
+
+        assertEquals(GothwadEndpoints.REDIRECT_URI_APP_LINK, pending.redirectUri)
+
+        val account = session.completeLogin(
+            GothwadEndpoints.REDIRECT_URI_CUSTOM_SCHEME + "?code=abc&state=" + pending.state,
+        )
+
+        assertEquals("user-1", account.userId)
+        assertEquals(listOf("user-1"), session.accounts().map { it.userId })
+        assertTrue(session.currentSession().credentials.isNotEmpty())
+        assertEquals(1, store.value.credentials.size)
+    }
+
+    @Test
+    fun `login completes when the redirect arrives over the app link`() = runTest {
+        val store = InMemoryTokenStore()
+        val session = manager(store, FakeOAuthService())
+        session.load()
+        val pending = session.beginLogin()
+
+        val account = session.completeLogin(
+            GothwadEndpoints.REDIRECT_URI_APP_LINK + "?code=abc&state=" + pending.state,
+        )
+
+        assertEquals("user-1", account.userId)
+    }
+
     @Test
     fun `a replayed callback with no pending login reports an expired attempt`() = runTest {
         val store = InMemoryTokenStore()

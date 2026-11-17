@@ -10,6 +10,23 @@ import java.security.MessageDigest
  * Every check mirrors the Gothwad Accounts core validator so the Mail app cannot be tricked
  * into completing a login from a foreign scheme, host or path, from a replayed state value,
  * or from a callback that carries both `code` and `error`.
+ *
+ * ## Why more than one redirect URI is accepted
+ *
+ * The app registers two redirect URIs for the same logical callback:
+ *
+ * - `https://mail.gothwadtech.com/oauth/callback` — the App Link, sent as `redirect_uri`;
+ * - `com.gothwad.mail:/oauth/callback` — the custom scheme.
+ *
+ * Accounts sends the browser to the App Link, so that URL is what the token exchange must present
+ * as `redirect_uri`. But the web bridge at `https://mail.gothwadtech.com/oauth/callback` hands the
+ * query over with an `intent://` / custom-scheme hop, and the browser may surface either URL to the
+ * activity. Validating against a single URI made the custom-scheme delivery fail with
+ * "Callback scheme does not match" — i.e. the user finished sign-in in Chrome, returned to the app,
+ * and landed back on the welcome screen.
+ *
+ * What stays strict: a closed set of accepted URIs, an exact scheme + path match, an exact authority
+ * match whenever the URI carries one, and the constant-time `state` check.
  */
 object CallbackValidator {
 
@@ -27,11 +44,15 @@ object CallbackValidator {
     /**
      * Validates [callback] against the registered [redirectUri] and the expected [state].
      *
-     * Rejects: missing/opaque URIs, fragments, scheme/authority/path mismatches, duplicated query
-     * parameters, missing or mismatched `state`, callbacks carrying both/neither `code` and `error`,
-     * and blank values.
+     * @param acceptedRedirectUris every redirect URI this client may legitimately receive. Defaults
+     *   to [redirectUri] alone, so callers that know only one URI keep the strictest behaviour.
      */
-    fun validate(callback: String, redirectUri: String, state: String): Result {
+    fun validate(
+        callback: String,
+        redirectUri: String,
+        state: String,
+        acceptedRedirectUris: List<String> = listOf(redirectUri),
+    ): Result {
         if (callback.isBlank()) throw InvalidCallbackException("Callback URL is empty")
         if (callback.length > MAX_CALLBACK_LENGTH) {
             throw InvalidCallbackException("Callback URL exceeds the allowed length")
@@ -40,20 +61,30 @@ object CallbackValidator {
 
         val uri = runCatching { URI(callback) }
             .getOrElse { throw InvalidCallbackException("Callback URL is not a valid URI") }
-        val expected = runCatching { URI(redirectUri) }
-            .getOrElse { throw InvalidCallbackException("Registered redirect URI is not valid") }
 
         if (uri.isOpaque) throw InvalidCallbackException("Callback URL must be hierarchical")
         if (uri.rawFragment != null) throw InvalidCallbackException("Callback URL must not have a fragment")
         if (uri.rawUserInfo != null) throw InvalidCallbackException("Callback URL must not carry user info")
 
-        val schemeMatches = uri.scheme?.equals(expected.scheme, ignoreCase = true) == true
+        val candidates = (acceptedRedirectUris + redirectUri).distinct()
+            .mapNotNull { runCatching { URI(it) }.getOrNull() }
+        if (candidates.isEmpty()) {
+            throw InvalidCallbackException("Registered redirect URI is not valid")
+        }
+
+        val schemeMatches = candidates.any { it.scheme?.equals(uri.scheme, ignoreCase = true) == true }
         if (!schemeMatches) throw InvalidCallbackException("Callback scheme does not match")
 
-        val authorityMatches = uri.rawAuthority == expected.rawAuthority
+        val sameScheme = candidates.filter { it.scheme?.equals(uri.scheme, ignoreCase = true) == true }
+        // The authority is only compared when the registered form has one: a reverse-DNS custom
+        // scheme (`com.gothwad.mail:/oauth/callback`) legitimately carries no host.
+        val authorityMatches = sameScheme.any { expected ->
+            expected.rawAuthority == null || expected.rawAuthority == uri.rawAuthority
+        }
         if (!authorityMatches) throw InvalidCallbackException("Callback authority does not match")
 
-        if (uri.rawPath != expected.rawPath) throw InvalidCallbackException("Callback path does not match")
+        val pathMatches = sameScheme.any { it.rawPath == uri.rawPath }
+        if (!pathMatches) throw InvalidCallbackException("Callback path does not match")
 
         val params = parseQuery(uri.rawQuery)
         val receivedState = params["state"] ?: throw InvalidCallbackException("Callback is missing state")

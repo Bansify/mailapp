@@ -134,7 +134,17 @@ class MailAuthSessionManager(
                 save(data.copy(pending = null))
                 throw PendingLoginUnavailableException()
             }
-            val result = CallbackValidator.validate(callbackUrl, pending.redirectUri, pending.state)
+            // `pending.redirectUri` stays the value sent to the token endpoint (the App Link);
+            // the callback may legitimately arrive over either registered delivery URI.
+            val result = CallbackValidator.validate(
+                callback = callbackUrl,
+                redirectUri = pending.redirectUri,
+                state = pending.state,
+                acceptedRedirectUris = listOf(
+                    pending.redirectUri,
+                    GothwadEndpoints.REDIRECT_URI_CUSTOM_SCHEME,
+                ),
+            )
             // Consume the pending login before any network work so a replay is impossible.
             save(data.copy(pending = null))
             Triple(pending, result, generation)
