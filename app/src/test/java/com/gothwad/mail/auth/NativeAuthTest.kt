@@ -213,6 +213,37 @@ class NativeAuthTest {
     }
 
     @Test
+    fun `copying several peer accounts keeps all of them and the first one active`() = runTest {
+        val store = InMemoryTokenStore()
+        val oauth = FakeOAuth()
+        val session = MailAuthSessionManager(store, oauth, config)
+        session.load()
+
+        listOf("one", "two", "three").forEach { name ->
+            session.completeNativeLogin(
+                TokenResponse("$name-access", "$name-refresh", 900L),
+                GothwadUserInfo(
+                    userId = "user-$name",
+                    username = name,
+                    name = name,
+                    email = "$name@gothwadtech.com",
+                ),
+            )
+        }
+
+        assertEquals(
+            "all three peer accounts must be stored",
+            listOf("user-one", "user-two", "user-three"),
+            store.value.credentials.map { it.account.userId },
+        )
+        assertEquals(
+            "the first copied account stays active instead of the last one",
+            "user-one",
+            session.activeAccountId(),
+        )
+    }
+
+    @Test
     fun `session manager redeems a peer issued code with its own verifier`() = runTest {
         val store = InMemoryTokenStore()
         val oauth = FakeOAuth()

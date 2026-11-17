@@ -14,8 +14,14 @@ from Gothwad Accounts OAuth 2.0 and the Gothwad Mail Worker REST API.
 - **Zero-browser cross-app silent SSO**: when `com.gothwad.accounts` (or another verified sibling
   app) is already signed in on the device, Mail asks it for a one-time PKCE code over Binder IPC
   (`issue_peer_code`), redeems it through `/api/oauth/token` and signs in **automatically at
-  startup — no browser, no permission screen**. If the peer refuses or is too old, the app falls
-  back to the native sheet pre-filled with the discovered identity.
+  startup — no browser, no permission screen**. **Every** account the peer holds is copied, not
+  just the first one, and the first account keeps the active slot so the others do not look lost.
+  If the peer refuses or is too old, the app falls back to the native sheet pre-filled with the
+  discovered identity and states the exact reason (outdated sibling app, different signing key,
+  peer signed out, …).
+- **Second factor**: `202 mfa_required` moves the sheet to a verification step that accepts both a
+  6-digit authenticator code and a one-time recovery code; a missing or expired challenge returns
+  the user to the identifier step instead of failing silently.
 - **Gothwad Accounts sign-in (secondary)**: OAuth 2.0 authorization code flow with PKCE (`S256`)
   opened in Custom Tabs, with a persisted `state`/`code_verifier`, strict callback validation and a
   ten-minute login window.
