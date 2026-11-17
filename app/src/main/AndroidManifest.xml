@@ -50,10 +50,9 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="${gothwadRedirectScheme}"
-                    android:host="oauth"
-                    android:path="/callback" />
+                <!-- Scheme-only on purpose: `com.gothwad.mail:/oauth/callback` puts `oauth` in the
+                     path, not the authority, so an `android:host` filter never matched it. -->
+                <data android:scheme="${gothwadRedirectScheme}" />
             </intent-filter>
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />

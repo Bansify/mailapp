@@ -71,8 +71,9 @@ com.gothwad.mail
 | Drafts | `POST /api/mail/drafts`, `DELETE /api/mail/drafts/:id` |
 | Send | `POST /api/mail/send` (returns `remainingToday`) |
 
-The `Authorization: Bearer` header is attached **only** to `mail.gothwadtech.com` requests that
-need it, redirects are never followed, and the session probe is sent without a token.
+The `Authorization: Bearer` header is attached **only** to `mail.gothwadtech.com` requests, exactly
+the same way for every `/api/*` endpoint including `GET /api/session`, and redirects are never
+followed.
 
 ### Sign-in states on device
 

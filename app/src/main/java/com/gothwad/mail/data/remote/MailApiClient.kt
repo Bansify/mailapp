@@ -194,15 +194,6 @@ class MailApiClient(
         parse: (Response) -> T,
     ): T {
         assertSameHost(base, url)
-        if (url.pathSegments.lastOrNull() == ROUTE_SESSION) {
-            // The session probe must answer without a bearer token: it is how the app discovers
-            // whether the stored credential still works.
-            val request = baseRequest(url, ifNoneMatch).get().build()
-            return client.newCall(request).execute().use { result ->
-                if (result.code !in expectedSuccessCodes) throw toApiException(result)
-                parse(result)
-            }
-        }
         val builder = Request.Builder()
             .url(url)
             .header("Accept", "application/json")
@@ -226,15 +217,6 @@ class MailApiClient(
             }
             parse(result)
         }
-    }
-
-    /** Builds a request without the bearer token; only used for the session probe. */
-    private fun baseRequest(url: HttpUrl, ifNoneMatch: String?): Request.Builder {
-        val builder = Request.Builder().url(url).header("Accept", "application/json")
-        if (ifNoneMatch != null && ifNoneMatch.isNotBlank()) {
-            builder.header("If-None-Match", ifNoneMatch)
-        }
-        return builder
     }
 
     private fun toApiException(response: Response): MailApiException {
@@ -264,9 +246,6 @@ class MailApiClient(
         const val DEFAULT_BASE_URL: String = "https://mail.gothwadtech.com/api"
         const val GothwadMailHost: String = "mail.gothwadtech.com"
         const val HTTP_NOT_MODIFIED: Int = 304
-
-        /** Path segment of `GET /api/session`, the only endpoint probed without a token. */
-        const val ROUTE_SESSION: String = "session"
 
         /**
          * Refuses any request that is not aimed at the configured Mail API origin, so a malformed
