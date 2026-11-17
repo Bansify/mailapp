@@ -15,6 +15,8 @@ import com.gothwad.mail.auth.broker.DirectorySnapshot
 import com.gothwad.mail.auth.broker.DirectoryHost
 import com.gothwad.mail.auth.broker.DiscoveredAccount
 import com.gothwad.mail.auth.broker.KnownGothwadApps
+import com.gothwad.mail.auth.broker.PeerAuthCode
+import com.gothwad.mail.auth.broker.PeerAuthCodeResult
 import com.gothwad.mail.auth.broker.PeerBrokerClient
 import com.gothwad.mail.data.remote.MailAccessTokenProvider
 import kotlinx.coroutines.CoroutineScope
@@ -36,6 +38,12 @@ sealed interface AuthEvent {
     data class SignedOut(val account: MailAuthAccount?, val outcome: DisconnectOutcome) : AuthEvent
     data object LoginCancelled : AuthEvent
     data object BrowserUnavailable : AuthEvent
+
+    /** A zero-browser peer sign-in finished; the account is already persisted. */
+    data class SilentSignInSucceeded(val account: MailAuthAccount, val sourcePackage: String) : AuthEvent
+
+    /** The silent attempt did not succeed, so the UI should offer an interactive sign-in. */
+    data class SilentSignInFailed(val sourcePackage: String?, val reason: String) : AuthEvent
     data class Failed(val failure: MailAuthFailure) : AuthEvent
 }
 
@@ -48,8 +56,9 @@ sealed interface AuthEvent {
 class GothwadMailAuth(
     private val application: Application,
     config: AuthConfig = AuthConfig.DEFAULT,
-    oauth: MailOAuthService = MailOAuthClient(config),
+    private val oauth: MailOAuthService = MailOAuthClient(config),
     store: MailTokenStore = EncryptedTokenStore(application, config),
+    private val nativeAuth: NativeAuthService = NativeAuthClient(config),
 ) : DirectoryHost, MailAccessTokenProvider {
 
     val config: AuthConfig = config
@@ -96,6 +105,163 @@ class GothwadMailAuth(
         scope.launch {
             sessionManager.load()
             refreshDiscoveredAccounts()
+            attemptSilentSignInIfUseful()
+        }
+    }
+
+    /**
+     * Zero-browser automatic sign-in.
+     *
+     * When this app holds no session but a verified sibling Gothwad app on the device is already
+     * signed in, ask it for a one-time PKCE code and redeem it in-process. The user sees no browser
+     * and no permission screen. Any failure is reported as an event so the UI falls back to the
+     * native sign-in sheet.
+     */
+    suspend fun attemptSilentSignInIfUseful(): Boolean {
+        if (sessionManager.currentSession().credentials.isNotEmpty()) return false
+        val candidates = mutableDiscovered.value.filter { it.sourcePackage.isNotBlank() }
+        if (candidates.isEmpty()) return false
+        // Accounts app is tried first, then the documented first-party order.
+        val ordered = candidates.sortedBy { candidate ->
+            when (candidate.sourcePackage) {
+                KnownGothwadApps.ACCOUNTS -> 0
+                KnownGothwadApps.DRIVE -> 1
+                KnownGothwadApps.STORE -> 2
+                KnownGothwadApps.TUBE -> 3
+                else -> 4
+            }
+        }
+        for (candidate in ordered) {
+            val result = signInSilently(candidate)
+            if (result != null) return true
+        }
+        return false
+    }
+
+    /** One silent attempt for a discovered account. Returns the account on success. */
+    suspend fun signInSilently(discovered: DiscoveredAccount): MailAuthAccount? {
+        val verifier = Pkce.createVerifier()
+        val challenge = Pkce.challenge(verifier)
+        val redirect = GothwadEndpoints.REDIRECT_URI_CUSTOM_SCHEME
+        val peerCode = withContext(Dispatchers.IO) {
+            runCatching {
+                peerBroker.requestPeerAuthCode(
+                    discovered = discovered,
+                    targetClientId = config.clientId,
+                    redirectUri = redirect,
+                    scope = GothwadEndpoints.SCOPE_PARAMETER,
+                    codeChallenge = challenge,
+                    policy = brokerPolicy,
+                )
+            }.getOrElse { PeerAuthCodeResult.failure("peer_unreachable") }
+        }
+        val issued = peerCode.code
+        if (issued == null) {
+            mutableEvents.emit(
+                AuthEvent.SilentSignInFailed(discovered.sourcePackage, peerCode.failureReason ?: "peer_code_failed"),
+            )
+            return null
+        }
+        return try {
+            val account = withContext(Dispatchers.IO) {
+                sessionManager.completePeerLogin(
+                    code = issued.code,
+                    codeVerifier = verifier,
+                    redirectUri = issued.redirectUri.ifBlank { redirect },
+                )
+            }
+            mutableEvents.emit(AuthEvent.SilentSignInSucceeded(account, discovered.sourcePackage))
+            refreshDiscoveredAccounts()
+            account
+        } catch (error: Exception) {
+            mutableEvents.emit(
+                AuthEvent.SilentSignInFailed(discovered.sourcePackage, "exchange_failed"),
+            )
+            null
+        }
+    }
+
+    // --- Direct native auth (no browser required) -----------------------------
+
+    /** `POST /api/mobile/auth/check-identifier`. */
+    suspend fun checkIdentifier(identifier: String): ApiCheckIdentifierResult =
+        withContext(Dispatchers.IO) { nativeAuth.checkIdentifier(identifier) }
+
+    /** `POST /api/mobile/auth/check-username`. */
+    suspend fun checkUsername(username: String): ApiCheckUsernameResult =
+        withContext(Dispatchers.IO) { nativeAuth.checkUsername(username) }
+
+    /**
+     * Native password sign-in. On `mfa_required` the challenge is returned to the UI, which then
+     * asks for the six-digit code and calls [verifyMfa].
+     */
+    suspend fun signInNatively(identifier: String, password: String): NativeAuthOutcome =
+        nativeStep { nativeAuth.signIn(identifier, password) }
+
+    /** Second factor for [signInNatively]. */
+    suspend fun verifyMfa(challenge: String, code: String): NativeAuthOutcome =
+        nativeStep { nativeAuth.verifyMfa(challenge, code) }
+
+    /** Native account creation; signs the new account in on success. */
+    suspend fun signUpNatively(request: ApiNativeSignUpRequest): NativeAuthOutcome =
+        nativeStep { nativeAuth.signUp(request) }
+
+    suspend fun forgotPassword(username: String): ApiNativeOkResult =
+        withContext(Dispatchers.IO) { nativeAuth.forgotPassword(username) }
+
+    suspend fun resetPassword(token: String, password: String): ApiNativeOkResult =
+        withContext(Dispatchers.IO) { nativeAuth.resetPassword(token, password) }
+
+    /** Runs one native auth call and persists the session when tokens come back. */
+    private suspend fun nativeStep(call: suspend () -> NativeAuthResult): NativeAuthOutcome {
+        val result = try {
+            withContext(Dispatchers.IO) { call() }
+        } catch (error: MailOAuthException) {
+            sessionManager.reportFailure(
+                if (error.rejected) MailAuthFailure.SessionExpired else MailAuthFailure.Unavailable,
+            )
+            return NativeAuthOutcome.Failed(
+                message = (error.message ?: "Could not reach Gothwad Accounts"),
+                rejected = error.rejected,
+            )
+        } catch (error: Exception) {
+            sessionManager.reportFailure(MailAuthFailure.Unavailable)
+            return NativeAuthOutcome.Failed(
+                message = error.message ?: "Could not reach Gothwad Accounts",
+                rejected = false,
+            )
+        }
+        return when (result) {
+            is NativeAuthResult.MfaRequired -> NativeAuthOutcome.MfaRequired(
+                challenge = result.challenge,
+                expiresIn = result.expiresIn,
+                message = result.message,
+            )
+
+            is NativeAuthResult.Tokens -> {
+                // Prefer the identity block from the sign-in response; fall back to the
+                // authoritative /oauth/userinfo so the persisted profile is never guessed.
+                val info: GothwadUserInfo = try {
+                    withContext(Dispatchers.IO) {
+                        result.user?.toUserInfo()?.takeIf { !it.username.isNullOrBlank() }
+                            ?: oauth.userInfo(result.tokens.accessToken)
+                    }
+                } catch (error: Exception) {
+                    return NativeAuthOutcome.Failed(
+                        "Signed in, but the Gothwad profile could not be loaded",
+                        rejected = false,
+                    )
+                }
+                val account = try {
+                    sessionManager.completeNativeLogin(result.tokens, info)
+                } catch (error: Exception) {
+                    return NativeAuthOutcome.Failed("The account could not be stored on this device", false)
+                }
+                sessionManager.clearFailure()
+                mutableEvents.emit(AuthEvent.SignedIn(account))
+                refreshDiscoveredAccounts()
+                NativeAuthOutcome.Success(account)
+            }
         }
     }
 
@@ -261,6 +427,44 @@ class GothwadMailAuth(
 
     override fun directorySnapshot(): DirectorySnapshot = runBlocking {
         sessionManager.currentSession().let { buildSnapshot(it) }
+    }
+
+    /**
+     * Issues a one-time PKCE code for a trusted sibling app (it never receives a token).
+     *
+     * The access token is refreshed when needed, then handed to Accounts which mints the code.
+     */
+    override fun issuePeerCode(
+        userId: String?,
+        username: String?,
+        email: String?,
+        targetClientId: String,
+        redirectUri: String,
+        scope: String,
+        codeChallenge: String,
+        codeChallengeMethod: String,
+    ): PeerAuthCode? = runBlocking {
+        if (codeChallengeMethod != "S256") return@runBlocking null
+        val session = sessionManager.currentSession()
+        val credential = when {
+            userId != null -> session.credentialFor(userId)
+            email != null -> session.credentials.firstOrNull { it.account.email == email }
+            username != null -> session.credentials.firstOrNull { it.account.username == username }
+            else -> session.activeCredential()
+        } ?: return@runBlocking null
+        val token = try {
+            sessionManager.accessToken(credential.account.userId)
+        } catch (error: Exception) {
+            null
+        } ?: return@runBlocking null
+        val code = oauth.issuePeerAuthCode(
+            peerAccessToken = token,
+            targetClientId = targetClientId,
+            redirectUri = redirectUri,
+            scope = scope,
+            codeChallenge = codeChallenge,
+        ) ?: return@runBlocking null
+        PeerAuthCode(code = code, redirectUri = redirectUri, scope = scope)
     }
 
     override fun applyPeerDeviceRemoval(userId: String, removedAt: Long) {

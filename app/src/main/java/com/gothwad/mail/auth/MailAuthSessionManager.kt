@@ -91,6 +91,11 @@ class MailAuthSessionManager(
         mutableFailure.value = null
     }
 
+    /** Publishes a sign-in failure so the signed-out screen can explain what happened. */
+    fun reportFailure(failure: MailAuthFailure?) {
+        mutableFailure.value = failure
+    }
+
     fun clearDisconnectOutcome() {
         mutableDisconnectOutcome.value = null
     }
@@ -193,6 +198,60 @@ class MailAuthSessionManager(
             mutableFailure.value = null
         }
         return account
+    }
+
+    /**
+     * Completes sign-in from direct native credentials (`/api/mobile/auth/{endpoint}`).
+     *
+     * Nothing is persisted until [tokens] and [userInfo] are both available, so a failed profile
+     * fetch cannot leave a half-written account behind.
+     */
+    suspend fun completeNativeLogin(tokens: TokenResponse, userInfo: GothwadUserInfo): MailAuthAccount {
+        val account = userInfo.toMailAccount(clock(), previous = null)
+        sessionMutex {
+            check(!corrupted) { "Account storage is corrupted" }
+            generation++
+            val previous = data.credentialFor(account.userId)
+            val addedAt = previous?.account?.addedAt?.takeIf { it > 0L } ?: account.addedAt
+            val credential = MailCredential(
+                account = account.copy(addedAt = addedAt, lastSeenAt = clock()),
+                accessToken = tokens.accessToken,
+                refreshToken = tokens.refreshToken ?: previous?.refreshToken,
+                expiresAt = clock() + tokens.expiresIn * 1000,
+                scopes = parseScopes(tokens.scope),
+            )
+            save(
+                data.copy(
+                    credentials = data.credentials.filterNot { it.account.userId == account.userId } + credential,
+                    activeUserId = account.userId,
+                    pending = null,
+                ),
+            )
+            mutableFailure.value = null
+        }
+        return account
+    }
+
+    /**
+     * Completes a zero-browser peer sign-in: redeem the peer-issued one-time code with this app's
+     * own PKCE verifier, then persist the resulting session.
+     *
+     * Runs entirely in-process (IPC + HTTPS), which is why the user never sees a browser or a
+     * permission screen.
+     */
+    suspend fun completePeerLogin(
+        code: String,
+        codeVerifier: String,
+        redirectUri: String,
+    ): MailAuthAccount {
+        val tokens = try {
+            oauth.exchangeAuthorizationCode(code, codeVerifier, redirectUri)
+        } catch (error: MailOAuthException) {
+            mutableFailure.value = if (error.rejected) MailAuthFailure.SessionExpired else MailAuthFailure.Unavailable
+            throw error
+        }
+        val info = oauth.userInfo(tokens.accessToken)
+        return completeNativeLogin(tokens, info)
     }
 
     /** Marks a login attempt as cancelled and drops the pending state. */

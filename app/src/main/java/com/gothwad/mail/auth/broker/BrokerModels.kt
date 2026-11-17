@@ -40,14 +40,41 @@ object BrokerIpcContract {
     const val METHOD_LIST_ACCOUNTS: String = "list_accounts"
     const val METHOD_NOTIFY_ACCOUNT_REMOVED: String = "notify_account_removed"
 
+    /**
+     * Zero-browser silent SSO: the caller asks a trusted sibling app that already holds a Gothwad
+     * Accounts session to issue a one-time PKCE authorization code for this app.
+     */
+    const val METHOD_ISSUE_PEER_CODE: String = "issue_peer_code"
+
     const val KEY_SNAPSHOT_JSON: String = "snapshot_json"
     const val KEY_USER_ID: String = "user_id"
     const val KEY_REMOVED_AT: String = "removed_at"
     const val KEY_OK: String = "ok"
+    const val KEY_ERROR: String = "error"
+
+    const val KEY_TARGET_CLIENT_ID: String = "target_client_id"
+    const val KEY_REDIRECT_URI: String = "redirect_uri"
+    const val KEY_SCOPE: String = "scope"
+    const val KEY_CODE_CHALLENGE: String = "code_challenge"
+    const val KEY_CODE_CHALLENGE_METHOD: String = "code_challenge_method"
+    const val KEY_CODE: String = "code"
+
+    const val KEY_USERNAME: String = "username"
+    const val KEY_EMAIL: String = "email"
+
+    /** Errors returned to an untrusted or failed caller. Never leak tokens or stack traces. */
+    const val ERROR_UNTRUSTED_CALLER: String = "untrusted_caller"
+    const val ERROR_UNKNOWN_ACCOUNT: String = "unknown_account"
+    const val ERROR_NOT_SIGNED_IN: String = "not_signed_in"
+    const val ERROR_INVALID_REQUEST: String = "invalid_request"
+    const val ERROR_PEER_CODE_FAILED: String = "peer_code_failed"
 
     const val MAX_ARG_BYTES: Int = 4096
     const val MAX_SNAPSHOT_BYTES: Int = 256 * 1024
     const val MAX_USER_ID_LENGTH: Int = 256
+
+    /** Longest accepted code challenge / scope / redirect string, to bound IPC work. */
+    const val MAX_FIELD_LENGTH: Int = 512
 }
 
 /**
@@ -97,6 +124,31 @@ data class DiscoveredAccount(
 
     val displayName: String
         get() = name?.takeIf { it.isNotBlank() } ?: username?.takeIf { it.isNotBlank() } ?: mailboxAddress
+}
+
+/** A one-time PKCE code issued by a trusted peer app for this app's own client id. */
+data class PeerAuthCode(
+    val code: String,
+    val redirectUri: String,
+    val scope: String? = null,
+)
+
+/**
+ * Result of a silent cross-app sign-in attempt.
+ *
+ * [failureReason] carries the peer's `error` value (or a transport reason) so the UI can explain
+ * why the automatic attempt fell back to an interactive sign-in.
+ */
+data class PeerAuthCodeResult(
+    val code: PeerAuthCode? = null,
+    val failureReason: String? = null,
+) {
+    val isSuccess: Boolean get() = code != null
+
+    companion object {
+        fun success(code: PeerAuthCode): PeerAuthCodeResult = PeerAuthCodeResult(code = code)
+        fun failure(reason: String): PeerAuthCodeResult = PeerAuthCodeResult(failureReason = reason)
+    }
 }
 
 /** Caller identity resolved from a Binder UID. */

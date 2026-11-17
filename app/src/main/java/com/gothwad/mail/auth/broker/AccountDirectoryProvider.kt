@@ -41,7 +41,7 @@ class AccountDirectoryProvider : ContentProvider() {
             policy = policy.trustPolicy,
             inspector = TrustVerifier.androidInspector(ctx),
             selfDebuggable = TrustVerifier.isSelfDebuggable(ctx),
-        ) ?: throw SecurityException("Untrusted caller UID: $callingUid")
+        ) ?: return denied(BrokerIpcContract.ERROR_UNTRUSTED_CALLER)
 
         if (arg != null && arg.toByteArray(Charsets.UTF_8).size > BrokerIpcContract.MAX_ARG_BYTES) {
             throw IllegalArgumentException("IPC argument exceeds bounds")
@@ -55,6 +55,49 @@ class AccountDirectoryProvider : ContentProvider() {
                     throw IllegalStateException("Directory snapshot exceeds bounds")
                 }
                 Bundle().apply { putString(BrokerIpcContract.KEY_SNAPSHOT_JSON, encoded) }
+            }
+
+            BrokerIpcContract.METHOD_ISSUE_PEER_CODE -> {
+                val targetClientId = extras?.getString(BrokerIpcContract.KEY_TARGET_CLIENT_ID)?.trim().orEmpty()
+                val redirectUri = extras?.getString(BrokerIpcContract.KEY_REDIRECT_URI)?.trim().orEmpty()
+                val scope = extras?.getString(BrokerIpcContract.KEY_SCOPE)?.trim().orEmpty()
+                val challenge = extras?.getString(BrokerIpcContract.KEY_CODE_CHALLENGE)?.trim().orEmpty()
+                val method = extras?.getString(BrokerIpcContract.KEY_CODE_CHALLENGE_METHOD)
+                    ?.trim()?.takeIf { it.isNotEmpty() } ?: "S256"
+                val userId = extras?.getString(BrokerIpcContract.KEY_USER_ID)?.trim()?.takeIf { it.isNotEmpty() }
+                val username = extras?.getString(BrokerIpcContract.KEY_USERNAME)?.trim()?.takeIf { it.isNotEmpty() }
+                val email = extras?.getString(BrokerIpcContract.KEY_EMAIL)?.trim()?.takeIf { it.isNotEmpty() }
+
+                if (targetClientId.isEmpty() || redirectUri.isEmpty() || scope.isEmpty() ||
+                    challenge.isEmpty() ||
+                    listOf(targetClientId, redirectUri, scope, challenge, method).any {
+                        it.length > BrokerIpcContract.MAX_FIELD_LENGTH
+                    } ||
+                    method != "S256"
+                ) {
+                    return denied(BrokerIpcContract.ERROR_INVALID_REQUEST)
+                }
+
+                val issued = host.issuePeerCode(
+                    userId = userId,
+                    username = username,
+                    email = email,
+                    targetClientId = targetClientId,
+                    redirectUri = redirectUri,
+                    scope = scope,
+                    codeChallenge = challenge,
+                    codeChallengeMethod = method,
+                )
+                if (issued == null) {
+                    denied(BrokerIpcContract.ERROR_NOT_SIGNED_IN)
+                } else {
+                    Bundle().apply {
+                        putBoolean(BrokerIpcContract.KEY_OK, true)
+                        putString(BrokerIpcContract.KEY_CODE, issued.code)
+                        putString(BrokerIpcContract.KEY_REDIRECT_URI, issued.redirectUri)
+                        issued.scope?.let { putString(BrokerIpcContract.KEY_SCOPE, it) }
+                    }
+                }
             }
 
             BrokerIpcContract.METHOD_NOTIFY_ACCOUNT_REMOVED -> {
@@ -129,6 +172,12 @@ class AccountDirectoryProvider : ContentProvider() {
         ) ?: throw SecurityException("Untrusted caller UID: $callingUid")
     }
 
+    /** A refusal bundle: `{ ok: false, error: <code> }`, never an exception to the caller. */
+    private fun denied(error: String): Bundle = Bundle().apply {
+        putBoolean(BrokerIpcContract.KEY_OK, false)
+        putString(BrokerIpcContract.KEY_ERROR, error)
+    }
+
     companion object {
         /**
          * Late-bound host so the provider has no compile-time dependency on the application class
@@ -144,4 +193,22 @@ interface DirectoryHost {
     val brokerPolicy: BrokerPolicy
     fun directorySnapshot(): DirectorySnapshot
     fun applyPeerDeviceRemoval(userId: String, removedAt: Long)
+
+    /**
+     * Issues a one-time PKCE code for a trusted sibling app that is signing in silently.
+     *
+     * Returns `null` when no local credential matches the request (or refreshing it failed), which
+     * the provider reports as `not_signed_in` so the caller can fall back to an interactive
+     * sign-in. Implementations must never return tokens over IPC.
+     */
+    fun issuePeerCode(
+        userId: String?,
+        username: String?,
+        email: String?,
+        targetClientId: String,
+        redirectUri: String,
+        scope: String,
+        codeChallenge: String,
+        codeChallengeMethod: String,
+    ): PeerAuthCode?
 }

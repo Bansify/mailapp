@@ -6,8 +6,18 @@ from Gothwad Accounts OAuth 2.0 and the Gothwad Mail Worker REST API.
 
 ## Features
 
-- **Gothwad Accounts sign-in**: OAuth 2.0 authorization code flow with PKCE (`S256`) opened in
-  Custom Tabs, with a persisted `state`/`code_verifier`, strict callback validation and a
+- **Native sign-in (no browser required)**: a 100% Jetpack Compose sheet talks directly to
+  `POST https://accounts.gothwadtech.com/api/mobile/auth/*` — identifier check, password sign-in,
+  six-digit 2FA, sign-up and password recovery (`forgot-password` / `reset-password`). It works on
+  a device with **no browser installed at all**. The browser OAuth flow stays available as the
+  secondary "Sign in with browser" button.
+- **Zero-browser cross-app silent SSO**: when `com.gothwad.accounts` (or another verified sibling
+  app) is already signed in on the device, Mail asks it for a one-time PKCE code over Binder IPC
+  (`issue_peer_code`), redeems it through `/api/oauth/token` and signs in **automatically at
+  startup — no browser, no permission screen**. If the peer refuses or is too old, the app falls
+  back to the native sheet pre-filled with the discovered identity.
+- **Gothwad Accounts sign-in (secondary)**: OAuth 2.0 authorization code flow with PKCE (`S256`)
+  opened in Custom Tabs, with a persisted `state`/`code_verifier`, strict callback validation and a
   ten-minute login window.
 - **Multi-account with encrypted storage**: accounts are keyed by the immutable `userId` (`sub`)
   and stored in an Android Keystore–backed, AEAD-encrypted file. Access tokens are refreshed
@@ -126,6 +136,24 @@ isolation.
 Release builds are never signed with the debug key. `.github/workflows/release.yml` builds the
 Release APK, Debug APK and Play Store AAB and signs the release artifacts with
 `RELEASE_KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD`.
+
+### Native auth endpoints (`/api/mobile/auth/*`)
+
+| Purpose | Request |
+| --- | --- |
+| Identifier probe | `POST /api/mobile/auth/check-identifier` → `{ ok, exists, kind }` |
+| Username probe | `POST /api/mobile/auth/check-username` → `{ ok, available, valid, email }` |
+| Password sign-in | `POST /api/mobile/auth/signin` → tokens, or `202` with `mfa_required` + `challenge` |
+| Second factor | `POST /api/mobile/auth/signin/mfa` (`challenge`, 6-digit `code`) |
+| Sign-up | `POST /api/mobile/auth/signup` → `201` with tokens |
+| Recovery | `POST /api/mobile/auth/forgot-password`, `POST /api/mobile/auth/reset-password` |
+| Peer code (Mail as the peer) | `POST /api/mobile/auth/peer-code` (Bearer, returns a one-time `code`) |
+
+`issue_peer_code` is the IPC method a signed-in sibling app answers: the caller passes
+`target_client_id`, `redirect_uri`, `scope`, `code_challenge` and `code_challenge_method`; the
+provider verifies the Binder caller with `TrustVerifier`, refreshes its own access token if needed,
+and returns `{ ok, code, redirect_uri, scope }`. **Tokens never cross IPC** — only a single-use code
+does. An untrusted caller gets `{ ok: false, error: "untrusted_caller" }`.
 
 ## Troubleshooting sign-in on a device
 

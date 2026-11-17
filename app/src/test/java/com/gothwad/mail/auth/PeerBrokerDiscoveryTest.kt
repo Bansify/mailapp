@@ -4,8 +4,13 @@ import com.gothwad.mail.auth.broker.BrokerPolicy
 import com.gothwad.mail.auth.broker.BrokerTrustPolicy
 import com.gothwad.mail.auth.broker.DirectoryAccountRecord
 import com.gothwad.mail.auth.broker.DirectorySnapshot
+import com.gothwad.mail.auth.broker.DiscoveredAccount
 import com.gothwad.mail.auth.broker.KnownGothwadApps
 import com.gothwad.mail.auth.broker.PeerBrokerClient
+import com.gothwad.mail.auth.broker.BrokerIpcContract
+import com.gothwad.mail.auth.broker.PeerAuthCode
+import com.gothwad.mail.auth.broker.PeerAuthCodeResult
+import com.gothwad.mail.auth.broker.PeerCodeRequest
 import com.gothwad.mail.auth.broker.PeerDirectoryTransport
 import com.gothwad.mail.auth.broker.SignatureInspector
 import com.gothwad.mail.auth.broker.TrustVerifier
@@ -29,8 +34,19 @@ private class FakeSignatureInspector(
 
 private class FakeTransport(
     private val peers: Map<String, DirectorySnapshot>,
+    private val peerCode: ((PeerCodeRequest) -> PeerAuthCodeResult?)? = null,
 ) : PeerDirectoryTransport {
     val notified = mutableListOf<Triple<String, String, Long>>()
+    val peerCodeRequests = mutableListOf<Pair<String, PeerCodeRequest>>()
+
+    override fun issuePeerCode(
+        packageName: String,
+        request: PeerCodeRequest,
+        policy: BrokerTrustPolicy,
+    ): PeerAuthCodeResult? {
+        peerCodeRequests.add(packageName to request)
+        return peerCode?.invoke(request)
+    }
 
     override fun listVerifiedPeers(policy: BrokerTrustPolicy): List<String> = peers.keys.sorted()
 
@@ -352,5 +368,100 @@ class PeerBrokerDiscoveryTest {
 
         val ignored = client.applyPeerDeviceRemoval(session, "user-1", 5L)
         assertTrue("An older tombstone must not remove a newer credential", ignored.credentials.isNotEmpty())
+    }
+
+    @Test
+    fun `requestPeerAuthCode sends the PKCE parameters to the owning peer`() {
+        val transport = FakeTransport(
+            peers = mapOf(KnownGothwadApps.ACCOUNTS to DirectorySnapshot(sourcePackage = KnownGothwadApps.ACCOUNTS)),
+            peerCode = { PeerAuthCodeResult.success(PeerAuthCode("peer-code", "com.gothwad.mail:/oauth/callback", "email")) },
+        )
+        val client = PeerBrokerClient(ownPackage, transport)
+        val discovered = DiscoveredAccount(
+            userId = "user-1",
+            username = "pawan",
+            email = "pawan@gothwadtech.com",
+            sourcePackage = KnownGothwadApps.ACCOUNTS,
+        )
+
+        val result = client.requestPeerAuthCode(
+            discovered = discovered,
+            targetClientId = "gothwad-mail",
+            redirectUri = "com.gothwad.mail:/oauth/callback",
+            scope = "email mail offline_access profile",
+            codeChallenge = "challenge-value",
+            policy = BrokerPolicy.PeerDiscovery(policy()),
+        )
+
+        assertTrue(result.isSuccess)
+        assertEquals("peer-code", result.code?.code)
+        val (packageName, request) = transport.peerCodeRequests.single()
+        assertEquals(KnownGothwadApps.ACCOUNTS, packageName)
+        assertEquals("gothwad-mail", request.targetClientId)
+        assertEquals("com.gothwad.mail:/oauth/callback", request.redirectUri)
+        assertEquals("S256", request.codeChallengeMethod)
+        assertEquals("challenge-value", request.codeChallenge)
+        assertEquals("user-1", request.userId)
+        assertEquals("pawan@gothwadtech.com", request.email)
+    }
+
+    @Test
+    fun `requestPeerAuthCode refuses a local account without any IPC`() {
+        val transport = FakeTransport(emptyMap())
+        val client = PeerBrokerClient(ownPackage, transport)
+        val local = DiscoveredAccount(userId = "user-1", sourcePackage = ownPackage)
+
+        val result = client.requestPeerAuthCode(
+            discovered = local,
+            targetClientId = "gothwad-mail",
+            redirectUri = "com.gothwad.mail:/oauth/callback",
+            scope = "email mail offline_access profile",
+            codeChallenge = "challenge",
+            policy = BrokerPolicy.PeerDiscovery(policy()),
+        )
+
+        assertFalse(result.isSuccess)
+        assertEquals("local_account", result.failureReason)
+        assertTrue(transport.peerCodeRequests.isEmpty())
+    }
+
+    @Test
+    fun `requestPeerAuthCode reports an unsupported or refusing peer`() {
+        val silent = FakeTransport(emptyMap(), peerCode = { null })
+        val refused = FakeTransport(
+            emptyMap(),
+            peerCode = { PeerAuthCodeResult.failure(BrokerIpcContract.ERROR_NOT_SIGNED_IN) },
+        )
+        val discovered = DiscoveredAccount(userId = "user-1", sourcePackage = KnownGothwadApps.ACCOUNTS)
+
+        val first = PeerBrokerClient(ownPackage, silent).requestPeerAuthCode(
+            discovered, "gothwad-mail", "com.gothwad.mail:/oauth/callback",
+            "email mail offline_access profile", "challenge", BrokerPolicy.PeerDiscovery(policy()),
+        )
+        val second = PeerBrokerClient(ownPackage, refused).requestPeerAuthCode(
+            discovered, "gothwad-mail", "com.gothwad.mail:/oauth/callback",
+            "email mail offline_access profile", "challenge", BrokerPolicy.PeerDiscovery(policy()),
+        )
+
+        assertEquals("peer_code_unsupported", first.failureReason)
+        assertEquals("not_signed_in", second.failureReason)
+    }
+
+    @Test
+    fun `peer discovery can be disabled so no code is ever requested`() {
+        val transport = FakeTransport(emptyMap())
+        val client = PeerBrokerClient(ownPackage, transport)
+
+        val result = client.requestPeerAuthCode(
+            DiscoveredAccount(userId = "user-1", sourcePackage = KnownGothwadApps.ACCOUNTS),
+            "gothwad-mail",
+            "com.gothwad.mail:/oauth/callback",
+            "email mail offline_access profile",
+            "challenge",
+            BrokerPolicy.Disabled,
+        )
+
+        assertEquals("peer_discovery_disabled", result.failureReason)
+        assertTrue(transport.peerCodeRequests.isEmpty())
     }
 }

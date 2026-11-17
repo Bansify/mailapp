@@ -97,3 +97,23 @@ data class MailUiState(
                 }
         }
 }
+
+/** Steps of the native, browser-less sign-in sheet. */
+enum class NativeAuthStep { IDENTIFIER, PASSWORD, MFA, SIGN_UP, RECOVERY }
+
+/**
+ * State of the in-app native sign-in / sign-up / 2FA sheet.
+ *
+ * The sheet talks to `/api/mobile/auth/{endpoint}` directly, so it works with no browser installed.
+ * [hint] carries non-error information (e.g. "check your recovery email") and [error] is shown
+ * as a failure.
+ */
+data class NativeAuthUiState(
+    val visible: Boolean = false,
+    val step: NativeAuthStep = NativeAuthStep.IDENTIFIER,
+    val identifier: String = "",
+    val challenge: String? = null,
+    val busy: Boolean = false,
+    val error: String? = null,
+    val hint: String? = null,
+)
