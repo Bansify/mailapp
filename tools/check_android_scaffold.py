@@ -108,6 +108,18 @@ else:
                 schemes.add(data.attrib.get(f"{ANDROID_NS}scheme"))
         if "${gothwadRedirectScheme}" not in schemes:
             errors.append("Callback activity must accept the ${gothwadRedirectScheme} custom scheme")
+        # `com.gothwad.mail:/oauth/callback` is single-slash, so `oauth` lands in the path and is
+        # never an authority. An explicit host therefore breaks interception of the redirect.
+        for intent_filter in callback.findall("intent-filter"):
+            for data in intent_filter.findall("data"):
+                if data.attrib.get(f"{ANDROID_NS}scheme") == "${gothwadRedirectScheme}" and (
+                    data.attrib.get(f"{ANDROID_NS}host") is not None
+                    or data.attrib.get(f"{ANDROID_NS}path") is not None
+                ):
+                    errors.append(
+                        "The custom-scheme intent filter must declare the scheme only "
+                        "(no android:host / android:path): the redirect is single-slash",
+                    )
         if "https" not in schemes:
             errors.append("Callback activity must accept the https App Link")
         if callback.attrib.get(f"{ANDROID_NS}exported") != "true":

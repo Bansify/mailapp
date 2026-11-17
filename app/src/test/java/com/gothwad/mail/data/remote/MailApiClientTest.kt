@@ -10,7 +10,6 @@ import okhttp3.mockwebserver.RecordedRequest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -323,12 +322,12 @@ class MailApiClientTest {
     }
 
     @Test
-    fun `session probe reads identity without a bearer token`() = runTest {
+    fun `session probe reads identity with a bearer token like every other endpoint`() = runTest {
         val session = client.session()
 
         val request = server.takeRequest()
         assertEquals("/api/session", request.path)
-        assertNull("The session probe must not send a bearer token", request.getHeader("Authorization"))
+        assertEquals("Bearer test-token", request.getHeader("Authorization"))
         assertEquals("pawan", session.user.username)
         assertEquals(3, session.unread["pawan"])
         assertEquals(18, session.limits.sendRemainingToday)
