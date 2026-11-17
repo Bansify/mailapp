@@ -364,16 +364,20 @@ class MailViewModel(
             _nativeAuth.update { state -> state.copy(busy = true, error = null) }
             when (val outcome = auth.signInNatively(identifier, password)) {
                 is NativeAuthOutcome.Success -> finishNativeAuth(outcome.account.username)
-                is NativeAuthOutcome.MfaRequired -> _nativeAuth.update { state ->
-                    state.copy(
-                        busy = false,
-                        step = NativeAuthStep.MFA,
-                        challenge = outcome.challenge,
-                        hint = outcome.message ?: "Enter the 6-digit code from your authenticator app",
-                    )
+                is NativeAuthOutcome.MfaRequired -> {
+                    _nativeAuth.update { state ->
+                        state.copy(
+                            busy = false,
+                            step = NativeAuthStep.MFA,
+                            challenge = outcome.challenge,
+                            hint = outcome.message ?: "Enter the 6-digit code from your authenticator app",
+                        )
+                    }
                 }
-                is NativeAuthOutcome.Failed -> _nativeAuth.update { state ->
-                    state.copy(busy = false, error = nativeAuthFailureText(outcome))
+                is NativeAuthOutcome.Failed -> {
+                    _nativeAuth.update { state ->
+                        state.copy(busy = false, error = nativeAuthFailureText(outcome))
+                    }
                 }
             }
         }
@@ -385,11 +389,15 @@ class MailViewModel(
             _nativeAuth.update { state -> state.copy(busy = true, error = null) }
             when (val outcome = auth.verifyMfa(challenge, code.trim())) {
                 is NativeAuthOutcome.Success -> finishNativeAuth(outcome.account.username)
-                is NativeAuthOutcome.MfaRequired -> _nativeAuth.update { state ->
-                    state.copy(busy = false, challenge = outcome.challenge, error = "That code was not accepted")
+                is NativeAuthOutcome.MfaRequired -> {
+                    _nativeAuth.update { state ->
+                        state.copy(busy = false, challenge = outcome.challenge, error = "That code was not accepted")
+                    }
                 }
-                is NativeAuthOutcome.Failed -> _nativeAuth.update { state ->
-                    state.copy(busy = false, error = nativeAuthFailureText(outcome))
+                is NativeAuthOutcome.Failed -> {
+                    _nativeAuth.update { state ->
+                        state.copy(busy = false, error = nativeAuthFailureText(outcome))
+                    }
                 }
             }
         }
@@ -400,11 +408,15 @@ class MailViewModel(
             _nativeAuth.update { state -> state.copy(busy = true, error = null) }
             when (val outcome = auth.signUpNatively(request)) {
                 is NativeAuthOutcome.Success -> finishNativeAuth(outcome.account.username)
-                is NativeAuthOutcome.MfaRequired -> _nativeAuth.update { state ->
-                    state.copy(busy = false, step = NativeAuthStep.MFA, challenge = outcome.challenge)
+                is NativeAuthOutcome.MfaRequired -> {
+                    _nativeAuth.update { state ->
+                        state.copy(busy = false, step = NativeAuthStep.MFA, challenge = outcome.challenge)
+                    }
                 }
-                is NativeAuthOutcome.Failed -> _nativeAuth.update { state ->
-                    state.copy(busy = false, error = nativeAuthFailureText(outcome))
+                is NativeAuthOutcome.Failed -> {
+                    _nativeAuth.update { state ->
+                        state.copy(busy = false, error = nativeAuthFailureText(outcome))
+                    }
                 }
             }
         }
@@ -456,7 +468,7 @@ class MailViewModel(
         }
     }
 
-    private fun nativeAuthFailureText(outcome: NativeAuthOutcome.Failed): String = when {
+    private fun nativeAuthFailureText(outcome: com.gothwad.mail.auth.NativeAuthOutcome.Failed): String = when {
         outcome.rejected -> "Incorrect identifier or password"
         outcome.message.contains("mfa", ignoreCase = true) -> "Enter the 6-digit code from your authenticator app"
         else -> outcome.message.ifBlank { "Could not sign in" }
