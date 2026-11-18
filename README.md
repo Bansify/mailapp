@@ -1,8 +1,8 @@
-# Gothwad Mail (Android)
+# Bansify Email (Android)
 
-A Material 3 email client for **Gothwad Mail**, signed in with a **Gothwad Account**.
+A Material 3 email client for **Bansify Email**, signed in with a **Bansify Account**.
 The app contains no demo or prototype data: every message, mailbox setting and account comes
-from Gothwad Accounts OAuth 2.0 and the Gothwad Mail Worker REST API.
+from Bansify Accounts OAuth 2.0 and the Bansify Email Worker REST API.
 
 ## Features
 
@@ -22,7 +22,7 @@ from Gothwad Accounts OAuth 2.0 and the Gothwad Mail Worker REST API.
 - **Second factor**: `202 mfa_required` moves the sheet to a verification step that accepts both a
   6-digit authenticator code and a one-time recovery code; a missing or expired challenge returns
   the user to the identifier step instead of failing silently.
-- **Gothwad Accounts sign-in (secondary)**: OAuth 2.0 authorization code flow with PKCE (`S256`)
+- **Bansify Accounts sign-in (secondary)**: OAuth 2.0 authorization code flow with PKCE (`S256`)
   opened in Custom Tabs, with a persisted `state`/`code_verifier`, strict callback validation and a
   ten-minute login window.
 - **Multi-account with encrypted storage**: accounts are keyed by the immutable `userId` (`sub`)
@@ -53,7 +53,7 @@ from Gothwad Accounts OAuth 2.0 and the Gothwad Mail Worker REST API.
 
 ```
 com.gothwad.mail
-├── auth/                      Gothwad Accounts OAuth 2.0 + PKCE and session storage
+├── auth/                      Bansify Accounts OAuth 2.0 + PKCE and session storage
 │   ├── Pkce.kt                S256 verifier/challenge, state generation
 │   ├── CallbackValidator.kt   scheme/host/path/state/code validation
 │   ├── EncryptedTokenStore.kt Keystore-backed AEAD store (AtomicFile)
@@ -182,7 +182,7 @@ Link plus the reverse-DNS custom scheme, and the PKCE `code_verifier` never leav
 
 ## Manual device checks
 
-1. Cold start with no signed-in account shows the **Welcome to Gothwad Mail** screen (no demo
+1. Cold start with no signed-in account shows the **Welcome to Bansify Email** screen (no demo
    mail), with **Sign in with Gothwad** and **Use another account**.
 2. Signing in opens Custom Tabs; returning through
    `https://mail.gothwadtech.com/oauth/callback` (or `com.gothwad.mail:/oauth/callback`) lands on
