@@ -91,14 +91,14 @@ fun SignedOutScreen(
                 Spacer(modifier = Modifier.height(22.dp))
 
                 Text(
-                    text = "Gothwad Mail",
+                    text = "bansify",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Welcome to Gothwad Mail",
+                    text = "Welcome to bansify",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
