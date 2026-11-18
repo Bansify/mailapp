@@ -51,7 +51,7 @@ import com.gothwad.mail.ui.state.NativeAuthUiState
  * 100% native Jetpack Compose sign-in, sign-up, two-factor and password-recovery sheet.
  *
  * It talks to `https://accounts.gothwadtech.com/api/mobile/auth/{endpoint}` through the view model, so
- * Gothwad Mail can sign in on a device with no browser at all. The browser flow stays available
+ * Bansify Email can sign in on a device with no browser at all. The browser flow stays available
  * from the same screen as the secondary "Sign in with browser" button.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -91,10 +91,10 @@ fun NativeAuthSheet(
             Spacer(Modifier.height(10.dp))
             Text(
                 text = when (state.step) {
-                    NativeAuthStep.IDENTIFIER -> "Sign in to Gothwad"
+                    NativeAuthStep.IDENTIFIER -> "Sign in to Bansify"
                     NativeAuthStep.PASSWORD -> "Enter your password"
                     NativeAuthStep.MFA -> "Two-step verification"
-                    NativeAuthStep.SIGN_UP -> "Create a Gothwad Account"
+                    NativeAuthStep.SIGN_UP -> "Create a Bansify Account"
                     NativeAuthStep.RECOVERY -> "Reset your password"
                 },
                 style = MaterialTheme.typography.titleLarge,
@@ -107,7 +107,7 @@ fun NativeAuthSheet(
                     NativeAuthStep.IDENTIFIER -> "Use your username, email or phone number"
                     NativeAuthStep.PASSWORD -> "Your password never leaves this device unencrypted"
                     NativeAuthStep.MFA -> "Enter the 6-digit code from your authenticator app"
-                    NativeAuthStep.SIGN_UP -> "Your new account is created on Gothwad Accounts"
+                    NativeAuthStep.SIGN_UP -> "Your new account is created on Bansify Accounts"
                     NativeAuthStep.RECOVERY -> "We will email a reset link to your recovery address"
                 },
                 style = MaterialTheme.typography.bodySmall,

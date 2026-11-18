@@ -17,7 +17,7 @@ import java.util.Locale
 import kotlin.math.absoluteValue
 
 /**
- * Conversions between the Mail Worker wire format, the Gothwad Accounts profile and the local
+ * Conversions between the Mail Worker wire format, the Bansify Accounts profile and the local
  * Room cache. Kept free of Android APIs so they can be unit tested on the JVM.
  */
 object MailMappers {

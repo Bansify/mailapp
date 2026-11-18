@@ -406,7 +406,7 @@ fun InboxScreen(
                                     )
                                 } else {
                                     PillSearchTopBar(
-                                        activeAccountName = uiState.activeAccount?.displayName ?: "Pawan Gothwad",
+                                        activeAccountName = uiState.activeAccount?.displayName ?: "Pawan Bansify",
                                         activeAccountColor = uiState.activeAccount?.avatarColorHex ?: 0xFF0B57D0,
                                         onOpenDrawer = { scope.launch { drawerState.open() } },
                                         onOpenSearch = onOpenSearch,

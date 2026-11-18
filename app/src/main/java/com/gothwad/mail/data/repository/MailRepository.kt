@@ -25,7 +25,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 /**
- * Offline-first bridge between the Gothwad Mail Worker API and the per-account Room cache.
+ * Offline-first bridge between the Bansify Email Worker API and the per-account Room cache.
  *
  * Every operation follows the same shape: update Room optimistically so the UI reacts instantly,
  * then call the Worker API and reconcile. All reads are scoped by the active account's email, so

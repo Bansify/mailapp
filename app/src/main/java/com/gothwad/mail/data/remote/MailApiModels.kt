@@ -192,10 +192,10 @@ fun sendFailureMessage(error: Throwable): String = when {
     error is MailApiException && error.code == MailApiErrorCode.SENDING_NOT_CONFIGURED ->
         "Sending is not configured for this account yet"
     error is MailApiException && error.isUnauthenticated ->
-        "Your Gothwad Account session expired. Sign in again."
+        "Your Bansify Account session expired. Sign in again."
     error is MailApiException && error.isForbidden ->
-        "This Gothwad Account cannot send mail from Gothwad Mail"
-    error is java.io.IOException -> "Could not reach Gothwad Mail. Check your connection and retry."
+        "This Bansify Account cannot send mail from Bansify Email"
+    error is java.io.IOException -> "Could not reach Bansify Email. Check your connection and retry."
     else -> "Could not send the message. Try again."
 }
 

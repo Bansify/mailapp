@@ -249,17 +249,17 @@ class MailViewModel(
         com.gothwad.mail.auth.DisconnectOutcome.AlreadyInvalidOnServer -> "Signed out; the grant was already invalid"
         com.gothwad.mail.auth.DisconnectOutcome.OfflineRemovedLocally ->
             "Signed out on this device; the server grant could not be confirmed"
-        com.gothwad.mail.auth.DisconnectOutcome.LocalOnly -> "Signed out of Gothwad Mail"
+        com.gothwad.mail.auth.DisconnectOutcome.LocalOnly -> "Signed out of Bansify Email"
     }
 
     private fun describeFailure(failure: MailAuthFailure): String = when (failure) {
         MailAuthFailure.BrowserUnavailable -> "No browser is available to sign in"
         MailAuthFailure.InvalidCallback -> "The sign-in response was invalid. Try again."
-        MailAuthFailure.CallbackExpired -> "That sign-in attempt expired. Tap Sign in with Gothwad to try again."
+        MailAuthFailure.CallbackExpired -> "That sign-in attempt expired. Tap Sign in with Bansify to try again."
         MailAuthFailure.LoginCancelled -> "Sign-in was cancelled"
-        MailAuthFailure.SessionExpired -> "Your Gothwad Account session expired. Sign in again."
+        MailAuthFailure.SessionExpired -> "Your Bansify Account session expired. Sign in again."
         MailAuthFailure.StorageUnavailable -> "Encrypted account storage is unavailable"
-        MailAuthFailure.Unavailable -> "Could not reach Gothwad Accounts"
+        MailAuthFailure.Unavailable -> "Could not reach Bansify Accounts"
     }
 
     private suspend fun syncAccountsToCache(accounts: List<MailAuthAccount>, active: MailAuthAccount?) {
@@ -295,7 +295,7 @@ class MailViewModel(
      */
     fun signInSilently(discovered: DiscoveredAccount) {
         viewModelScope.launch {
-            _nativeAuth.update { state -> state.copy(busy = true, error = null, hint = "Signing in with your Gothwad Account…") }
+            _nativeAuth.update { state -> state.copy(busy = true, error = null, hint = "Signing in with your Bansify Account…") }
             // Copy every account this peer holds, so a user with several accounts gets all of them
             // instead of only the one they tapped.
             val account = auth.signInSilently(discovered)
@@ -347,11 +347,11 @@ class MailViewModel(
             val result = runCatching { auth.checkIdentifier(trimmed) }.getOrNull()
             _nativeAuth.update { state ->
                 when {
-                    result == null -> state.copy(busy = false, error = "Could not reach Gothwad Accounts")
+                    result == null -> state.copy(busy = false, error = "Could not reach Bansify Accounts")
                     // Only a definite "does not exist" blocks the next step; an unknown answer
                     // still lets the user try the password.
                     result.exists == false && result.ok ->
-                        state.copy(busy = false, error = "No Gothwad Account matches that identifier")
+                        state.copy(busy = false, error = "No Bansify Account matches that identifier")
                     else -> state.copy(busy = false, step = NativeAuthStep.PASSWORD)
                 }
             }
@@ -495,7 +495,7 @@ class MailViewModel(
         else -> outcome.message.ifBlank { "Could not sign in" }
     }
 
-    /** Starts the interactive Gothwad Accounts sign-in from the signed-out screen. */
+    /** Starts the interactive Bansify Accounts sign-in from the signed-out screen. */
     fun signIn(activity: android.app.Activity, chooseAccount: Boolean = false) {
         auth.signIn(activity, chooseAccount = chooseAccount)
     }
@@ -620,11 +620,11 @@ class MailViewModel(
                 localState.update {
                     it.copy(
                         syncError = if (error.isUnauthenticated) {
-                            "Your Gothwad Account session expired. Sign in again."
+                            "Your Bansify Account session expired. Sign in again."
                         } else {
                             error.message?.takeIf { message -> message.isNotBlank() }
-                                ?.let { message -> "Could not sync Gothwad Mail: $message" }
-                                ?: "Could not sync Gothwad Mail"
+                                ?.let { message -> "Could not sync Bansify Email: $message" }
+                                ?: "Could not sync Bansify Email"
                         },
                     )
                 }
@@ -632,8 +632,8 @@ class MailViewModel(
                 localState.update {
                     it.copy(
                         syncError = error.message?.takeIf { message -> message.isNotBlank() }
-                            ?.let { message -> "Could not sync Gothwad Mail: $message" }
-                            ?: "Could not sync Gothwad Mail",
+                            ?.let { message -> "Could not sync Bansify Email: $message" }
+                            ?: "Could not sync Bansify Email",
                     )
                 }
             } finally {
@@ -807,12 +807,12 @@ class MailViewModel(
 
     fun snoozeThread(thread: EmailThreadEntity, untilLabel: String) {
         _snackbarEvents.tryEmit(
-            MailSnackbarEvent.SimpleMessage("Snooze is not available for Gothwad Mail yet — $untilLabel"),
+            MailSnackbarEvent.SimpleMessage("Snooze is not available for Bansify Email yet — $untilLabel"),
         )
     }
 
     fun updateLabels(thread: EmailThreadEntity, labels: List<String>) {
-        _snackbarEvents.tryEmit(MailSnackbarEvent.SimpleMessage("Labels are not available for Gothwad Mail yet"))
+        _snackbarEvents.tryEmit(MailSnackbarEvent.SimpleMessage("Labels are not available for Bansify Email yet"))
     }
 
     /** `DELETE /api/mail/trash` for the active account. */
@@ -845,7 +845,7 @@ class MailViewModel(
     }
 
     /**
-     * "Add another account" always goes through Gothwad Accounts. There is no local text-field
+     * "Add another account" always goes through Bansify Accounts. There is no local text-field
      * account form: a Mail account exists only with a real OAuth grant.
      */
     fun addAccount(activity: android.app.Activity) {
@@ -985,7 +985,7 @@ class MailViewModel(
         viewModelScope.launch {
             if (scheduledForMillis != null) {
                 _snackbarEvents.emit(
-                    MailSnackbarEvent.SimpleMessage("Scheduled send is not available for Gothwad Mail yet"),
+                    MailSnackbarEvent.SimpleMessage("Scheduled send is not available for Bansify Email yet"),
                 )
                 return@launch
             }
