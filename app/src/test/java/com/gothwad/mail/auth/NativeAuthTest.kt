@@ -30,7 +30,7 @@ class NativeAuthTest {
         clientId = "gothwad-mail",
         redirectUri = GothwadEndpoints.REDIRECT_URI_CUSTOM_SCHEME,
         scopes = GothwadEndpoints.SCOPES,
-        accountsBaseUrl = "https://accounts.gothwadtech.com/api",
+        accountsBaseUrl = "https://accounts.bansify.com/api",
         mailApiBaseUrl = GothwadEndpoints.MAIL_API_BASE_URL,
     )
 
@@ -46,7 +46,7 @@ class NativeAuthTest {
                         """{"ok":true,"exists":true,"kind":"username"}""",
                     )
                     path.startsWith("/api/mobile/auth/check-username") -> json(
-                        """{"ok":true,"available":true,"valid":true,"email":"newuser@gothwadtech.com"}""",
+                        """{"ok":true,"available":true,"valid":true,"email":"newuser@bansify.com"}""",
                     )
                     path.startsWith("/api/mobile/auth/signin/mfa") -> json(tokensJson())
                     path.startsWith("/api/mobile/auth/signin") -> if (mfaRequired) {
@@ -65,7 +65,7 @@ class NativeAuthTest {
                         json("""{"ok":true,"message":"Password updated"}""")
                     path.startsWith("/api/oauth/userinfo") -> json(
                         """{"sub":"user-native","preferred_username":"newuser",
-                           "name":"New User","email":"newuser@gothwadtech.com"}""",
+                           "name":"New User","email":"newuser@bansify.com"}""",
                     )
                     path.startsWith("/api/oauth/token") -> json(tokensJson())
                     else -> MockResponse().setResponseCode(404).setBody("""{"error":"not_found"}""")
@@ -158,7 +158,7 @@ class NativeAuthTest {
 
         val username = client.checkUsername("newuser")
         assertTrue(username.available)
-        assertEquals("newuser@gothwadtech.com", username.email)
+        assertEquals("newuser@bansify.com", username.email)
     }
 
     @Test
@@ -200,7 +200,7 @@ class NativeAuthTest {
                 userId = "user-native",
                 username = "newuser",
                 name = "New User",
-                email = "newuser@gothwadtech.com",
+                email = "newuser@bansify.com",
             ),
         )
 
@@ -226,7 +226,7 @@ class NativeAuthTest {
                     userId = "user-$name",
                     username = name,
                     name = name,
-                    email = "$name@gothwadtech.com",
+                    email = "$name@bansify.com",
                 ),
             )
         }
@@ -290,7 +290,7 @@ class NativeAuthTest {
         {"ok":true,"access_token":"native-access","refresh_token":"native-refresh",
          "expires_in":900,"token_type":"Bearer","scope":"email mail offline_access profile",
          "user":{"user_id":"user-native","preferred_username":"newuser","name":"New User",
-                 "email":"newuser@gothwadtech.com"}}
+                 "email":"newuser@bansify.com"}}
     """.trimIndent()
 
     /** Minimal OAuth fake; records the peer-code redemption arguments. */
@@ -317,7 +317,7 @@ class NativeAuthTest {
             userId = "peer-user",
             username = "peeruser",
             name = "Peer User",
-            email = "peeruser@gothwadtech.com",
+            email = "peeruser@bansify.com",
         )
 
         override fun revoke(refreshToken: String?, accessToken: String?): RevokeStatus = RevokeStatus.Revoked

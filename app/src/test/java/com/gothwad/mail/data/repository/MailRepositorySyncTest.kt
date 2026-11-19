@@ -33,15 +33,15 @@ class MailRepositorySyncTest {
     private lateinit var repository: MailRepository
 
     private val accountA = MailAccountEntity(
-        email = "pawan@gothwadtech.com",
+        email = "pawan@bansify.com",
         userId = "user-a",
         username = "pawan",
-        displayName = "Pawan Gothwad",
+        displayName = "Bansify User",
         avatarColorHex = 0xFF0B57D0,
         isActive = true,
     )
     private val accountB = MailAccountEntity(
-        email = "ananya@gothwadtech.com",
+        email = "ananya@bansify.com",
         userId = "user-b",
         username = "ananya",
         displayName = "Ananya Verma",
@@ -67,8 +67,8 @@ class MailRepositorySyncTest {
                         .addHeader("ETag", request.getHeader("If-None-Match") ?: "\"etag-1\"")
                     path.startsWith("/api/mail/messages/") && request.method == "GET" ->
                         detailResponse ?: json(
-                            """{"message":{"id":"msg-1","folder":"inbox","from":{"name":"Ananya","email":"ananya@gothwadtech.com"},
-                               "to":["pawan@gothwadtech.com"],"cc":[],"bcc":[],"subject":"Hello","snippet":"Hi",
+                            """{"message":{"id":"msg-1","folder":"inbox","from":{"name":"Ananya","email":"ananya@bansify.com"},
+                               "to":["pawan@bansify.com"],"cc":[],"bcc":[],"subject":"Hello","snippet":"Hi",
                                "receivedAt":"2026-01-02T03:04:05.000Z","isRead":false,"isStarred":false,
                                "attachments":[],"bodyText":"Full body text","bodyHtml":null}}""",
                         ).addHeader("ETag", "\"etag-2\"")
@@ -438,12 +438,12 @@ class MailRepositorySyncTest {
     private companion object {
         val inboxPageJson = """
             {"messages":[
-              {"id":"msg-1","folder":"inbox","from":{"name":"Ananya","email":"ananya@gothwadtech.com"},
-               "to":["pawan@gothwadtech.com"],"cc":[],"bcc":[],"subject":"Hello","snippet":"Hi there",
+              {"id":"msg-1","folder":"inbox","from":{"name":"Ananya","email":"ananya@bansify.com"},
+               "to":["pawan@bansify.com"],"cc":[],"bcc":[],"subject":"Hello","snippet":"Hi there",
                "receivedAt":"2026-01-02T03:04:05.000Z","isRead":false,"isStarred":false,
                "attachments":[{"name":"spec.pdf","type":"application/pdf","size":2048}]},
-              {"id":"msg-2","folder":"inbox","from":{"name":"Rohan","email":"rohan@gothwadtech.com"},
-               "to":["pawan@gothwadtech.com"],"cc":[],"bcc":[],"subject":"Second","snippet":"Second snippet",
+              {"id":"msg-2","folder":"inbox","from":{"name":"Rohan","email":"rohan@bansify.com"},
+               "to":["pawan@bansify.com"],"cc":[],"bcc":[],"subject":"Second","snippet":"Second snippet",
                "receivedAt":"2026-01-01T03:04:05.000Z","isRead":true,"isStarred":true,"attachments":[]}
             ],"folder":"inbox","nextBefore":"2026-01-01T03:04:05.000Z"}
         """.trimIndent()
@@ -454,8 +454,8 @@ class MailRepositorySyncTest {
         """.trimIndent()
 
         val sessionJson = """
-            {"authenticated":true,"user":{"username":"pawan","email":"pawan@gothwadtech.com",
-             "name":"Pawan Gothwad","firstName":"Pawan","lastName":"Gothwad","avatarUrl":null},
+            {"authenticated":true,"user":{"username":"pawan","email":"pawan@bansify.com",
+             "name":"Bansify User","firstName":"Pawan","lastName":"Bansify","avatarUrl":null},
              "unread":{"pawan":3},"limits":{"dailySendLimit":20,"sendRemainingToday":9}}
         """.trimIndent()
     }

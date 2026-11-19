@@ -60,7 +60,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
                     android:scheme="https"
-                    android:host="mail.gothwadtech.com"
+                    android:host="mail.bansify.com"
                     android:path="/oauth/callback" />
             </intent-filter>
         </activity>

@@ -17,7 +17,7 @@ import java.util.Locale
 import kotlin.math.absoluteValue
 
 /**
- * Conversions between the Mail Worker wire format, the Gothwad Accounts profile and the local
+ * Conversions between the Mail Worker wire format, the Bansify Accounts profile and the local
  * Room cache. Kept free of Android APIs so they can be unit tested on the JVM.
  */
 object MailMappers {
@@ -70,7 +70,7 @@ object MailMappers {
         uiFolder: MailFolder,
         existing: EmailThreadEntity? = null,
     ): EmailThreadEntity {
-        val senderEmail = message.from.email.ifBlank { "unknown@gothwadtech.com" }
+        val senderEmail = message.from.email.ifBlank { "unknown@bansify.com" }
         val senderName = message.from.name?.takeIf { it.isNotBlank() }
             ?: senderEmail.substringBefore('@')
         val timestamp = parseInstantMillis(message.receivedAt)
@@ -173,7 +173,7 @@ object MailMappers {
         active: Boolean = true,
     ): MailAccountEntity {
         val username = user.username.ifBlank { user.email.substringBefore('@') }
-        val email = user.email.ifBlank { "$username@gothwadtech.com" }
+        val email = user.email.ifBlank { "$username@bansify.com" }
         val display = user.name?.takeIf { it.isNotBlank() }
             ?: listOfNotNull(user.firstName, user.lastName).filter { it.isNotBlank() }.joinToString(" ")
                 .takeIf { it.isNotBlank() }
@@ -190,7 +190,7 @@ object MailMappers {
             starredMessages = existing?.starredMessages ?: 0,
             retentionLimit = existing?.retentionLimit ?: ApiMailSettings.RETENTION_500,
             unreadCount = existing?.unreadCount ?: 0,
-            signature = existing?.signature ?: "Sent from Gothwad Mail",
+            signature = existing?.signature ?: "Sent from Bansify Mail",
             vacationEnabled = existing?.vacationEnabled ?: false,
             vacationMessage = existing?.vacationMessage
                 ?: "Thanks for your email. I am currently away and will respond soon.",
@@ -208,7 +208,7 @@ object MailMappers {
             ?: existing?.username
             ?: info.email?.substringBefore('@')
             ?: info.userId.take(8)
-        val email = info.email?.takeIf { it.isNotBlank() } ?: existing?.email ?: "$username@gothwadtech.com"
+        val email = info.email?.takeIf { it.isNotBlank() } ?: existing?.email ?: "$username@bansify.com"
         val display = info.name?.takeIf { it.isNotBlank() }
             ?: listOfNotNull(info.givenName, info.familyName).filter { it.isNotBlank() }.joinToString(" ")
                 .takeIf { it.isNotBlank() }
@@ -226,7 +226,7 @@ object MailMappers {
             starredMessages = existing?.starredMessages ?: 0,
             retentionLimit = existing?.retentionLimit ?: ApiMailSettings.RETENTION_500,
             unreadCount = existing?.unreadCount ?: 0,
-            signature = existing?.signature ?: "Sent from Gothwad Mail",
+            signature = existing?.signature ?: "Sent from Bansify Mail",
             vacationEnabled = existing?.vacationEnabled ?: false,
             vacationMessage = existing?.vacationMessage
                 ?: "Thanks for your email. I am currently away and will respond soon.",

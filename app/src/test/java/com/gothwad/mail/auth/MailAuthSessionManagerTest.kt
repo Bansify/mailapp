@@ -20,9 +20,9 @@ private class FakeOAuthService(
         GothwadUserInfo(
             userId = "user-1",
             username = "pawan",
-            name = "Pawan Gothwad",
-            email = "pawan@gothwadtech.com",
-            picture = "https://accounts.gothwadtech.com/avatar/$token.png",
+            name = "Bansify User",
+            email = "pawan@bansify.com",
+            picture = "https://accounts.bansify.com/avatar/$token.png",
         )
     },
     var revokeStatus: RevokeStatus = RevokeStatus.Revoked,
@@ -69,8 +69,8 @@ class MailAuthSessionManagerTest {
         val account = MailAuthAccount(
             userId = "user-1",
             username = "pawan",
-            email = "pawan@gothwadtech.com",
-            displayName = "Pawan Gothwad",
+            email = "pawan@bansify.com",
+            displayName = "Bansify User",
             addedAt = addedAt,
             lastSeenAt = addedAt,
         )
@@ -235,7 +235,7 @@ class MailAuthSessionManagerTest {
 
         val tokens = (1..8).map { async { session.accessToken() } }.awaitAll()
 
-        assertEquals("Exactly one refresh must reach Gothwad Accounts", 1, oauth.refreshCalls.get())
+        assertEquals("Exactly one refresh must reach Bansify Accounts", 1, oauth.refreshCalls.get())
         assertTrue(tokens.all { it == "access-2" })
     }
 
@@ -431,8 +431,8 @@ class MailAuthSessionManagerTest {
                 GothwadUserInfo(
                     userId = "user-$index",
                     username = "pawan$index",
-                    name = "Pawan Gothwad $index",
-                    email = "pawan$index@gothwadtech.com",
+                    name = "Bansify User $index",
+                    email = "pawan$index@bansify.com",
                     picture = null,
                 )
             },

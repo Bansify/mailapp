@@ -3,7 +3,7 @@ package com.gothwad.mail.auth
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-/** A Gothwad Account identity, exactly as `/oauth/userinfo` returns it. */
+/** A Bansify Account identity, exactly as `/oauth/userinfo` returns it. */
 @Serializable
 data class GothwadUserInfo(
     @SerialName("sub") val userId: String,
@@ -29,7 +29,7 @@ data class MailAuthAccount(
     val lastSeenAt: Long = 0L,
 ) {
     /** The canonical mailbox address shown in the UI. */
-    val mailboxAddress: String get() = email.ifBlank { "$username@gothwadtech.com" }
+    val mailboxAddress: String get() = email.ifBlank { "$username@bansify.com" }
 
     /** One or two letter monogram used by the existing Material 3 avatars. */
     val monogram: String
@@ -114,12 +114,12 @@ enum class MailAuthFailure {
 /** Signals an OAuth failure; [rejected] means the server invalidated the credential. */
 class MailOAuthException(
     val rejected: Boolean,
-    message: String = if (rejected) "Credential rejected by Gothwad Accounts" else "OAuth request failed",
+    message: String = if (rejected) "Credential rejected by Bansify Accounts" else "OAuth request failed",
     cause: Throwable? = null,
 ) : java.io.IOException(message, cause)
 
 /** Signals a token exchange/refresh rejected by the server (`invalid_grant` / `invalid_token`). */
-class InvalidCredentialException(message: String = "The Gothwad Account credential is no longer valid") :
+class InvalidCredentialException(message: String = "The Bansify Account credential is no longer valid") :
     java.io.IOException(message)
 
 /** Thrown when the encrypted store cannot be unlocked or write. */

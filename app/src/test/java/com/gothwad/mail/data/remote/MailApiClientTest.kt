@@ -38,7 +38,7 @@ class MailApiClientTest {
                 return when {
                     path == "/api/session" -> json(
                         """{"authenticated":true,"user":{"username":"pawan",
-                           "email":"pawan@gothwadtech.com","name":"Pawan Gothwad"},
+                           "email":"pawan@bansify.com","name":"Bansify User"},
                            "unread":{"pawan":3},"limits":{"dailySendLimit":20,"sendRemainingToday":18}}""",
                     )
                     path.startsWith("/api/mail/messages/batch") -> json("""{"ok":true,"updated":3}""")
@@ -50,8 +50,8 @@ class MailApiClientTest {
                         } else {
                             json(
                                 """{"message":{"id":"msg-1","folder":"inbox",
-                                   "from":{"name":"Ananya","email":"ananya@gothwadtech.com"},
-                                   "to":["pawan@gothwadtech.com"],"cc":[],"bcc":[],"subject":"Hello",
+                                   "from":{"name":"Ananya","email":"ananya@bansify.com"},
+                                   "to":["pawan@bansify.com"],"cc":[],"bcc":[],"subject":"Hello",
                                    "snippet":"Hi","receivedAt":"2026-01-02T03:04:05.000Z","isRead":true,
                                    "isStarred":false,"attachments":[],"bodyText":"Full body",
                                    "bodyHtml":"<p>Full body</p>"}}""",
@@ -347,7 +347,7 @@ class MailApiClientTest {
 
     @Test
     fun `cross host request is refused before sending the token`() {
-        val base = "https://mail.gothwadtech.com/api".toHttpUrl()
+        val base = "https://mail.bansify.com/api".toHttpUrl()
         val other = "https://evil.example.com/api/mail/messages".toHttpUrl()
         assertTrue(runCatching { MailApiClient.assertSameHost(base, other) }.isFailure)
         // Same-origin requests pass.

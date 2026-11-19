@@ -50,7 +50,7 @@ data object SignedOutRoute
 /**
  * Root navigation.
  *
- * With no signed-in Gothwad account the app shows the Signed-Out welcome screen only; it never
+ * With no signed-in Bansify account the app shows the Signed-Out welcome screen only; it never
  * falls back to prototype data. Once an account holds a Mail grant the full mail experience is
  * shown, with the same Material 3 drawer, bottom navigation and adaptive two-pane layout as before.
  */

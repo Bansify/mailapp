@@ -44,9 +44,9 @@ import com.gothwad.mail.ui.state.AuthScreenState
 import com.gothwad.mail.ui.state.MailUiState
 
 /**
- * Clean Gothwad Mail welcome screen shown when no account holds a Mail grant.
+ * Clean Bansify Mail welcome screen shown when no account holds a Mail grant.
  *
- * It offers the primary Gothwad sign-in, the Accounts account chooser, and one-tap sign-in for any
+ * It offers the primary Bansify sign-in, the Accounts account chooser, and one-tap sign-in for any
  * accounts discovered on this device through the verified peer directory.
  */
 @Composable
@@ -91,21 +91,21 @@ fun SignedOutScreen(
                 Spacer(modifier = Modifier.height(22.dp))
 
                 Text(
-                    text = "Gothwad Mail",
+                    text = "Bansify Mail",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Welcome to Gothwad Mail",
+                    text = "Welcome to Bansify Mail",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
-                    text = "Sign in with your Gothwad Account to read and send email",
+                    text = "Sign in with your Bansify Account to read and send email",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -116,7 +116,7 @@ fun SignedOutScreen(
                 if (uiState.discoveredAccounts.any { !it.isAuthorizedLocally } && uiState.authState != AuthScreenState.LOADING) {
                     Spacer(modifier = Modifier.height(6.dp))
                     SilentSignInBanner(
-                        text = "Signing in with your Gothwad Account on this device…",
+                        text = "Signing in with your Bansify Account on this device…",
                         modifier = Modifier.widthIn(max = 520.dp),
                     )
                 }
@@ -156,7 +156,7 @@ fun SignedOutScreen(
                         .testTag("sign_in_with_gothwad_button"),
                     shape = RoundedCornerShape(25.dp)
                 ) {
-                    Text("Sign in with Gothwad", style = MaterialTheme.typography.titleSmall)
+                    Text("Sign in with Bansify", style = MaterialTheme.typography.titleSmall)
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -169,7 +169,7 @@ fun SignedOutScreen(
                         .testTag("use_another_account_button"),
                     shape = RoundedCornerShape(25.dp)
                 ) {
-                    Text("Create a Gothwad Account", style = MaterialTheme.typography.titleSmall)
+                    Text("Create a Bansify Account", style = MaterialTheme.typography.titleSmall)
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -201,9 +201,9 @@ fun SignedOutScreen(
                             com.gothwad.mail.auth.MailAuthFailure.InvalidCallback ->
                                 "The sign-in response was invalid. Please try again."
                             com.gothwad.mail.auth.MailAuthFailure.CallbackExpired ->
-                                "That sign-in attempt expired. Tap Sign in with Gothwad to try again."
+                                "That sign-in attempt expired. Tap Sign in with Bansify to try again."
                             com.gothwad.mail.auth.MailAuthFailure.SessionExpired ->
-                                "Your Gothwad Account session expired. Sign in again."
+                                "Your Bansify Account session expired. Sign in again."
                             else -> "Could not complete the sign-in. Please try again."
                         },
                         style = MaterialTheme.typography.bodySmall,
@@ -215,7 +215,7 @@ fun SignedOutScreen(
                 Spacer(modifier = Modifier.height(22.dp))
 
                 TextButton(onClick = onOpenAccountManager) {
-                    Text("Manage your Gothwad Account")
+                    Text("Manage your Bansify Account")
                 }
             }
         }

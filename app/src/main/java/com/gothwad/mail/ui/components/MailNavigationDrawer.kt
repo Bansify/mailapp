@@ -95,7 +95,7 @@ fun MailNavigationDrawerSheet(
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Gothwad Mail",
+                    text = "Bansify Mail",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface

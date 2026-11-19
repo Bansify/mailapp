@@ -5,7 +5,7 @@ import java.security.SecureRandom
 import java.util.Base64
 
 /**
- * OAuth 2.0 PKCE (`S256`) helpers for the Gothwad Accounts native flow.
+ * OAuth 2.0 PKCE (`S256`) helpers for the Bansify Accounts native flow.
  *
  * The verifier is a cryptographically random 64-byte value rendered as unpadded
  * Base64url (86 characters, inside the RFC 7636 43..128 bound), and the challenge is

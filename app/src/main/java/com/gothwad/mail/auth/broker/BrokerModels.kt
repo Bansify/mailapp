@@ -2,7 +2,7 @@ package com.gothwad.mail.auth.broker
 
 import kotlinx.serialization.Serializable
 
-/** First-party Gothwad applications that take part in peer account discovery. */
+/** First-party Bansify applications that take part in peer account discovery. */
 object KnownGothwadApps {
     const val ACCOUNTS = "com.gothwad.accounts"
     const val MAIL = "com.gothwad.mail"
@@ -22,7 +22,7 @@ object KnownGothwadApps {
         SAMPLE_BETA,
     )
 
-    /** The production release certificate of the Gothwad first-party suite (lowercase hex). */
+    /** The production release certificate of the Bansify first-party suite (lowercase hex). */
     const val RELEASE_CERT_SHA256: String =
         "504e2fc78ab68e018b848fc102762e4499a08803412e66a40b2b09403c6149b6"
 
@@ -41,7 +41,7 @@ object BrokerIpcContract {
     const val METHOD_NOTIFY_ACCOUNT_REMOVED: String = "notify_account_removed"
 
     /**
-     * Zero-browser silent SSO: the caller asks a trusted sibling app that already holds a Gothwad
+     * Zero-browser silent SSO: the caller asks a trusted sibling app that already holds a Bansify
      * Accounts session to issue a one-time PKCE authorization code for this app.
      */
     const val METHOD_ISSUE_PEER_CODE: String = "issue_peer_code"
@@ -78,7 +78,7 @@ object BrokerIpcContract {
 }
 
 /**
- * One non-secret identity record shared with sibling Gothwad apps.
+ * One non-secret identity record shared with sibling Bansify apps.
  * Access and refresh tokens are intentionally absent from this type.
  */
 @Serializable
@@ -119,7 +119,7 @@ data class DiscoveredAccount(
     /** Address shown on the one-tap "Continue as" card. */
     val mailboxAddress: String
         get() = email?.takeIf { it.isNotBlank() }
-            ?: username?.takeIf { it.isNotBlank() }?.let { "$it@gothwadtech.com" }
+            ?: username?.takeIf { it.isNotBlank() }?.let { "$it@bansify.com" }
             ?: userId
 
     val displayName: String

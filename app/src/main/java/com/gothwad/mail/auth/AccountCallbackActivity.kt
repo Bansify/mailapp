@@ -7,9 +7,9 @@ import com.gothwad.mail.MailApplication
 import com.gothwad.mail.MainActivity
 
 /**
- * Receives the Gothwad Accounts OAuth redirect for both registered redirect URIs:
+ * Receives the Bansify Accounts OAuth redirect for both registered redirect URIs:
  * the `com.gothwad.mail:/oauth/callback` custom scheme and the verified
- * `https://mail.gothwadtech.com/oauth/callback` App Link.
+ * `https://mail.bansify.com/oauth/callback` App Link.
  *
  * The activity renders no UI. It hands the raw callback to the application, which validates it
  * against the persisted PKCE state, and immediately returns the user to the main screen.

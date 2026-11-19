@@ -24,7 +24,7 @@ interface SessionListener {
 }
 
 /**
- * Multi-account OAuth session manager for Gothwad Mail.
+ * Multi-account OAuth session manager for Bansify Mail.
  *
  * Accounts are keyed by the immutable `userId` (`sub` of `/oauth/userinfo`). All mutations happen
  * under a single mutex and are persisted to the encrypted store, so process death cannot split
@@ -269,7 +269,7 @@ class MailAuthSessionManager(
 
     suspend fun switchTo(userId: String) = sessionMutex {
         check(!corrupted) { "Account storage is corrupted" }
-        require(data.credentials.any { it.account.userId == userId }) { "Unknown Gothwad account" }
+        require(data.credentials.any { it.account.userId == userId }) { "Unknown Bansify account" }
         val now = clock()
         val updated = data.credentials.map {
             if (it.account.userId == userId) {
@@ -313,7 +313,7 @@ class MailAuthSessionManager(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                throw MailOAuthException(false, "Could not reach Gothwad Accounts to refresh the session", error)
+                throw MailOAuthException(false, "Could not reach Bansify Accounts to refresh the session", error)
             }
             mutex.withLock {
                 val current = data.credentialFor(targetId)
@@ -349,7 +349,7 @@ class MailAuthSessionManager(
 
     /**
      * Removes the account from this device, records a tombstone and returns the removal timestamp
-     * so the caller can broadcast it to verified sibling Gothwad apps.
+     * so the caller can broadcast it to verified sibling Bansify apps.
      */
     suspend fun removeFromDevice(
         userId: String,
@@ -376,7 +376,7 @@ class MailAuthSessionManager(
         return removedAt
     }
 
-    /** Applies a device-removal tombstone received from a verified peer Gothwad app. */
+    /** Applies a device-removal tombstone received from a verified peer Bansify app. */
     suspend fun applyPeerDeviceRemoval(userId: String, removedAt: Long) {
         if (userId.isBlank() || removedAt <= 0L) return
         sessionMutex {
@@ -431,7 +431,7 @@ class MailAuthSessionManager(
 
     suspend fun activeAccountId(): String? = mutex.withLock { data.activeUserId }
 
-    /** Non-secret snapshot for sibling Gothwad apps. Tokens are never included. */
+    /** Non-secret snapshot for sibling Bansify apps. Tokens are never included. */
     suspend fun directorySnapshot(): DirectorySnapshot = mutex.withLock {
         if (corrupted) {
             DirectorySnapshot(sourcePackage = config.packageName)
@@ -563,7 +563,7 @@ class MailAuthSessionManager(
         return MailAuthAccount(
             userId = userId,
             username = username,
-            email = email?.takeIf { it.isNotBlank() } ?: "$username@gothwadtech.com",
+            email = email?.takeIf { it.isNotBlank() } ?: "$username@bansify.com",
             displayName = display,
             avatarUrl = picture?.takeIf { it.isNotBlank() } ?: previous?.avatarUrl,
             addedAt = previous?.addedAt ?: now,

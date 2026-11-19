@@ -49,7 +49,7 @@ interface MailOAuthService {
 }
 
 /**
- * Native OAuth 2.0 + PKCE client for Gothwad Accounts.
+ * Native OAuth 2.0 + PKCE client for Bansify Accounts.
  *
  * Only the Accounts host is contacted here, and no redirect following is allowed so an
  * authorization response can never bounce to an unexpected origin.
@@ -122,7 +122,7 @@ class MailOAuthClient(
     /**
      * Asks this app's own Accounts session for a one-time code for a sibling app.
      *
-     * Used when Gothwad Mail is the peer that already holds a session and another first-party app
+     * Used when Bansify Mail is the peer that already holds a session and another first-party app
      * requests silent sign-in. The access token never leaves the process.
      */
     override fun issuePeerAuthCode(
