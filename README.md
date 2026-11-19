@@ -1,13 +1,13 @@
-# Gothwad Mail (Android)
+# Bansify Mail (Android)
 
-A Material 3 email client for **Gothwad Mail**, signed in with a **Gothwad Account**.
+A Material 3 email client for **Bansify Mail**, signed in with a **Bansify Account**.
 The app contains no demo or prototype data: every message, mailbox setting and account comes
-from Gothwad Accounts OAuth 2.0 and the Gothwad Mail Worker REST API.
+from Bansify Accounts OAuth 2.0 and the Bansify Mail Worker REST API.
 
 ## Features
 
 - **Native sign-in (no browser required)**: a 100% Jetpack Compose sheet talks directly to
-  `POST https://accounts.gothwadtech.com/api/mobile/auth/*` — identifier check, password sign-in,
+  `POST https://accounts.bansify.com/api/mobile/auth/*` — identifier check, password sign-in,
   six-digit 2FA, sign-up and password recovery (`forgot-password` / `reset-password`). It works on
   a device with **no browser installed at all**. The browser OAuth flow stays available as the
   secondary "Sign in with browser" button.
@@ -22,14 +22,14 @@ from Gothwad Accounts OAuth 2.0 and the Gothwad Mail Worker REST API.
 - **Second factor**: `202 mfa_required` moves the sheet to a verification step that accepts both a
   6-digit authenticator code and a one-time recovery code; a missing or expired challenge returns
   the user to the identifier step instead of failing silently.
-- **Gothwad Accounts sign-in (secondary)**: OAuth 2.0 authorization code flow with PKCE (`S256`)
+- **Bansify Accounts sign-in (secondary)**: OAuth 2.0 authorization code flow with PKCE (`S256`)
   opened in Custom Tabs, with a persisted `state`/`code_verifier`, strict callback validation and a
   ten-minute login window.
 - **Multi-account with encrypted storage**: accounts are keyed by the immutable `userId` (`sub`)
   and stored in an Android Keystore–backed, AEAD-encrypted file. Access tokens are refreshed
   single-flight per account when less than 60 seconds remain, and rotated refresh tokens are
   persisted atomically.
-- **Peer account discovery**: mutually certificate-verified sibling Gothwad apps on the same
+- **Peer account discovery**: mutually certificate-verified sibling Bansify apps on the same
   device (`com.gothwad.accounts`, `com.gothwad.drive`, `com.gothwad.store`, `com.gothwad.tube`,
   sample builds) publish a non-secret account directory through a `ContentProvider`. Discovered
   accounts appear under **Available on this device** and sign in with one tap. Tokens never cross
@@ -53,7 +53,7 @@ from Gothwad Accounts OAuth 2.0 and the Gothwad Mail Worker REST API.
 
 ```
 com.gothwad.mail
-├── auth/                      Gothwad Accounts OAuth 2.0 + PKCE and session storage
+├── auth/                      Bansify Accounts OAuth 2.0 + PKCE and session storage
 │   ├── Pkce.kt                S256 verifier/challenge, state generation
 │   ├── CallbackValidator.kt   scheme/host/path/state/code validation
 │   ├── EncryptedTokenStore.kt Keystore-backed AEAD store (AtomicFile)
@@ -74,20 +74,20 @@ com.gothwad.mail
 
 | Purpose | Request |
 | --- | --- |
-| Authorize | `GET https://accounts.gothwadtech.com/api/oauth/authorize` (`S256` PKCE) |
-| Account chooser | `https://accounts.gothwadtech.com/signin?choose=1&next=<authorize>` |
-| Token exchange / refresh | `POST https://accounts.gothwadtech.com/api/oauth/token` |
-| Profile | `GET https://accounts.gothwadtech.com/api/oauth/userinfo` |
-| Server grant revoke | `POST https://accounts.gothwadtech.com/api/oauth/revoke` |
-| Session & quotas | `GET https://mail.gothwadtech.com/api/session` |
-| Mailbox settings | `GET` / `PATCH https://mail.gothwadtech.com/api/mail/settings` |
-| Message list & search | `GET https://mail.gothwadtech.com/api/mail/messages` |
-| Message detail | `GET https://mail.gothwadtech.com/api/mail/messages/:id` (`If-None-Match`) |
+| Authorize | `GET https://accounts.bansify.com/api/oauth/authorize` (`S256` PKCE) |
+| Account chooser | `https://accounts.bansify.com/signin?choose=1&next=<authorize>` |
+| Token exchange / refresh | `POST https://accounts.bansify.com/api/oauth/token` |
+| Profile | `GET https://accounts.bansify.com/api/oauth/userinfo` |
+| Server grant revoke | `POST https://accounts.bansify.com/api/oauth/revoke` |
+| Session & quotas | `GET https://mail.bansify.com/api/session` |
+| Mailbox settings | `GET` / `PATCH https://mail.bansify.com/api/mail/settings` |
+| Message list & search | `GET https://mail.bansify.com/api/mail/messages` |
+| Message detail | `GET https://mail.bansify.com/api/mail/messages/:id` (`If-None-Match`) |
 | Mutations | `PATCH /api/mail/messages/:id`, `POST /api/mail/messages/batch`, `DELETE /api/mail/messages/:id`, `DELETE /api/mail/trash` |
 | Drafts | `POST /api/mail/drafts`, `DELETE /api/mail/drafts/:id` |
 | Send | `POST /api/mail/send` (returns `remainingToday`) |
 
-The `Authorization: Bearer` header is attached **only** to `mail.gothwadtech.com` requests, exactly
+The `Authorization: Bearer` header is attached **only** to `mail.bansify.com` requests, exactly
 the same way for every `/api/*` endpoint including `GET /api/session`, and redirects are never
 followed.
 
@@ -97,7 +97,7 @@ followed.
 - **Disconnect Mail grant on the server** (`revokeOnServer = true`): calls `POST /oauth/revoke`
   first, then clears local tokens, reporting the truthful outcome.
 - **Remove account from this device**: records a tombstone, deletes the account and its cached
-  mail, and notifies every verified sibling Gothwad app through
+  mail, and notifies every verified sibling Bansify app through
   `notify_account_removed`.
 
 ## Build and test
@@ -108,7 +108,7 @@ python3 tools/check_android_scaffold.py # XML, manifest, version catalog, wrappe
 ./gradlew testDebugUnitTest assembleDebug
 ```
 
-The two `tools/` scripts are static checks copied in spirit from `GothwadTech/accountsapp`. They
+The two `tools/` scripts are static checks copied in spirit from `Bansify/accountsapp`. They
 run in `.github/workflows/planning.yml` (documentation only) and at the start of the Android CI
 build, so a broken README link, a malformed manifest or an unsigned release contract fails fast
 instead of after a full Gradle build. They are **not** a substitute for the Gradle tests.
@@ -172,8 +172,8 @@ screen, the app shows an explicit reason ("That sign-in attempt expired…", "Th
 was invalid…") instead of failing silently.
 
 **The redirect opens Chrome instead of the app.** The App Link
-`https://mail.gothwadtech.com/oauth/callback` is only verified when
-`https://mail.gothwadtech.com/.well-known/assetlinks.json` lists this app's signing certificate
+`https://mail.bansify.com/oauth/callback` is only verified when
+`https://mail.bansify.com/.well-known/assetlinks.json` lists this app's signing certificate
 SHA-256. Until it does, the `com.gothwad.mail:/oauth/callback` custom scheme still returns to the
 app; the release workflow prints the certificate SHA-256 in its step summary for exactly this.
 
@@ -182,10 +182,10 @@ Link plus the reverse-DNS custom scheme, and the PKCE `code_verifier` never leav
 
 ## Manual device checks
 
-1. Cold start with no signed-in account shows the **Welcome to Gothwad Mail** screen (no demo
-   mail), with **Sign in with Gothwad** and **Use another account**.
+1. Cold start with no signed-in account shows the **Welcome to Bansify Mail** screen (no demo
+   mail), with **Sign in with Bansify** and **Use another account**.
 2. Signing in opens Custom Tabs; returning through
-   `https://mail.gothwadtech.com/oauth/callback` (or `com.gothwad.mail:/oauth/callback`) lands on
+   `https://mail.bansify.com/oauth/callback` (or `com.gothwad.mail:/oauth/callback`) lands on
    the inbox with real messages.
 3. Install `com.gothwad.accounts` with a different signed-in account: it appears under
    **Available on this device** both on the welcome screen and in the account switcher; tapping it

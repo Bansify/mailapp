@@ -41,12 +41,12 @@ fun AccountSwitcherDialog(
     allAccounts: List<MailAccountEntity>,
     onDismiss: () -> Unit,
     onSelectAccount: (String) -> Unit,
-    /** Opens Gothwad Accounts with `choose=1` so the user can authorize another account. */
+    /** Opens Bansify Accounts with `choose=1` so the user can authorize another account. */
     onAddAccount: () -> Unit,
     onOpenSettings: () -> Unit,
     /** Opens `com.gothwad.accounts` or the Accounts web page. */
     onManageAccount: () -> Unit,
-    /** Accounts discovered on this device through verified sibling Gothwad apps. */
+    /** Accounts discovered on this device through verified sibling Bansify apps. */
     discoveredAccounts: List<DiscoveredAccount> = emptyList(),
     onContinueAsDiscovered: (DiscoveredAccount) -> Unit = {}
 ) {
@@ -74,7 +74,7 @@ fun AccountSwitcherDialog(
                     }
                     Spacer(modifier = Modifier.weight(1f))
                     Text(
-                        text = "Gothwad Mail",
+                        text = "Bansify Mail",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -130,7 +130,7 @@ fun AccountSwitcherDialog(
                                     .fillMaxWidth()
                                     .testTag("manage_account_button")
                             ) {
-                                Text("Manage your Gothwad Account")
+                                Text("Manage your Bansify Account")
                             }
 
                             Spacer(modifier = Modifier.height(12.dp))
@@ -205,7 +205,7 @@ fun AccountSwitcherDialog(
                     }
                 }
 
-                // Accounts found on this device in other verified Gothwad apps.
+                // Accounts found on this device in other verified Bansify apps.
                 val availableDiscovered = discoveredAccounts.filterNot { discovered ->
                     allAccounts.any {
                         it.username.equals(discovered.username.orEmpty(), ignoreCase = true) ||
@@ -309,7 +309,7 @@ fun AccountSwitcherDialog(
                     )
                     Spacer(modifier = Modifier.width(14.dp))
                     Text(
-                        text = "Manage your Gothwad Account",
+                        text = "Manage your Bansify Account",
                         style = MaterialTheme.typography.titleSmall
                     )
                 }

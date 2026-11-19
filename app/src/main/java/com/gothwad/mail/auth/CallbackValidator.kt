@@ -7,7 +7,7 @@ import java.security.MessageDigest
 /**
  * Strict validation of the OAuth redirect callback.
  *
- * Every check mirrors the Gothwad Accounts core validator so the Mail app cannot be tricked
+ * Every check mirrors the Bansify Accounts core validator so the Mail app cannot be tricked
  * into completing a login from a foreign scheme, host or path, from a replayed state value,
  * or from a callback that carries both `code` and `error`.
  *
@@ -15,11 +15,11 @@ import java.security.MessageDigest
  *
  * The app registers two redirect URIs for the same logical callback:
  *
- * - `https://mail.gothwadtech.com/oauth/callback` — the App Link, sent as `redirect_uri`;
+ * - `https://mail.bansify.com/oauth/callback` — the App Link, sent as `redirect_uri`;
  * - `com.gothwad.mail:/oauth/callback` — the custom scheme.
  *
  * Accounts sends the browser to the App Link, so that URL is what the token exchange must present
- * as `redirect_uri`. But the web bridge at `https://mail.gothwadtech.com/oauth/callback` hands the
+ * as `redirect_uri`. But the web bridge at `https://mail.bansify.com/oauth/callback` hands the
  * query over with an `intent://` / custom-scheme hop, and the browser may surface either URL to the
  * activity. Validating against a single URI made the custom-scheme delivery fail with
  * "Callback scheme does not match" — i.e. the user finished sign-in in Chrome, returned to the app,

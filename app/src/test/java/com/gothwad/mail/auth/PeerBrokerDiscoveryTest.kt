@@ -208,7 +208,7 @@ class PeerBrokerDiscoveryTest {
                     userId = "user-accounts",
                     username = "ananya",
                     name = "Ananya Verma",
-                    email = "ananya@gothwadtech.com",
+                    email = "ananya@bansify.com",
                     addedAt = 1_000L,
                     lastSeenAt = 2_000L,
                 ),
@@ -230,7 +230,7 @@ class PeerBrokerDiscoveryTest {
         assertEquals("ananya", account.username)
         assertEquals(KnownGothwadApps.ACCOUNTS, account.sourcePackage)
         assertFalse(account.isAuthorizedLocally)
-        assertEquals("ananya@gothwadtech.com", account.mailboxAddress)
+        assertEquals("ananya@bansify.com", account.mailboxAddress)
     }
 
     @Test
@@ -322,8 +322,8 @@ class PeerBrokerDiscoveryTest {
                 DirectoryAccountRecord(
                     userId = "user-1",
                     username = "pawan",
-                    name = "Pawan Gothwad",
-                    email = "pawan@gothwadtech.com",
+                    name = "Bansify User",
+                    email = "pawan@bansify.com",
                     addedAt = 1L,
                     lastSeenAt = 2L,
                 ),
@@ -345,7 +345,7 @@ class PeerBrokerDiscoveryTest {
                     account = MailAuthAccount(
                         userId = "user-1",
                         username = "pawan",
-                        email = "pawan@gothwadtech.com",
+                        email = "pawan@bansify.com",
                         displayName = "Pawan",
                         addedAt = 10L,
                         lastSeenAt = 10L,
@@ -380,7 +380,7 @@ class PeerBrokerDiscoveryTest {
         val discovered = DiscoveredAccount(
             userId = "user-1",
             username = "pawan",
-            email = "pawan@gothwadtech.com",
+            email = "pawan@bansify.com",
             sourcePackage = KnownGothwadApps.ACCOUNTS,
         )
 
@@ -402,7 +402,7 @@ class PeerBrokerDiscoveryTest {
         assertEquals("S256", request.codeChallengeMethod)
         assertEquals("challenge-value", request.codeChallenge)
         assertEquals("user-1", request.userId)
-        assertEquals("pawan@gothwadtech.com", request.email)
+        assertEquals("pawan@bansify.com", request.email)
     }
 
     @Test

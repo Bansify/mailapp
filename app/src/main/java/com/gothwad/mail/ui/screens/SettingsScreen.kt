@@ -206,7 +206,7 @@ fun SettingsScreen(
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                 Text(
-                    text = "Gothwad Mail storage",
+                    text = "Bansify Mail storage",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
@@ -230,7 +230,7 @@ fun SettingsScreen(
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                 Text(
-                    text = "Gothwad Account",
+                    text = "Bansify Account",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
@@ -238,8 +238,8 @@ fun SettingsScreen(
 
                 SettingsRow(
                     icon = Icons.Rounded.ManageAccounts,
-                    title = "Manage your Gothwad Account",
-                    subtitle = "Open Gothwad Accounts or the Accounts website",
+                    title = "Manage your Bansify Account",
+                    subtitle = "Open Bansify Accounts or the Accounts website",
                     onClick = onManageAccount
                 )
 
@@ -253,21 +253,21 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = Icons.Rounded.LinkOff,
                     title = "Disconnect Mail grant on the server",
-                    subtitle = "Revokes Gothwad Mail access in your Gothwad Account",
+                    subtitle = "Revokes Bansify Mail access in your Bansify Account",
                     onClick = onDisconnectFromServer
                 )
 
                 SettingsRow(
                     icon = Icons.Rounded.PhonelinkErase,
                     title = "Remove account from this device",
-                    subtitle = "Also notifies other Gothwad apps installed here",
+                    subtitle = "Also notifies other Bansify apps installed here",
                     onClick = { showRemoveDialog = true }
                 )
 
                 SettingsRow(
                     icon = Icons.Rounded.PrivacyTip,
                     title = "Privacy",
-                    subtitle = "How Gothwad Mail handles your mail and tokens",
+                    subtitle = "How Bansify Mail handles your mail and tokens",
                     onClick = onOpenPrivacyPolicy
                 )
             }
@@ -317,8 +317,8 @@ fun SettingsScreen(
             title = { Text("Sign out of this account?") },
             text = {
                 Text(
-                    "Your Gothwad Mail tokens will be removed from this device. " +
-                        "The Mail grant stays active in your Gothwad Account, so other devices keep working."
+                    "Your Bansify Mail tokens will be removed from this device. " +
+                        "The Mail grant stays active in your Bansify Account, so other devices keep working."
                 )
             },
             confirmButton = {
@@ -342,7 +342,7 @@ fun SettingsScreen(
             text = {
                 Text(
                     "The account and its cached messages are deleted from this device, and every " +
-                        "installed Gothwad app is notified. Your Gothwad Account itself is not affected."
+                        "installed Bansify app is notified. Your Bansify Account itself is not affected."
                 )
             },
             confirmButton = {

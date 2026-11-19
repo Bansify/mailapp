@@ -243,7 +243,7 @@ class PeerBrokerClient(
     /**
      * Zero-browser silent SSO: asks the peer app that owns [discovered] for a one-time PKCE code.
      *
-     * The peer app must already hold a Gothwad Accounts session for that account; it exchanges its
+     * The peer app must already hold a Bansify Accounts session for that account; it exchanges its
      * own grant server-side and only a single-use code crosses IPC.
      */
     fun requestPeerAuthCode(

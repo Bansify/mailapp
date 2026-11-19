@@ -48,7 +48,7 @@ sealed interface AuthEvent {
 }
 
 /**
- * Application-wide Gothwad auth facade.
+ * Application-wide Bansify auth facade.
  *
  * Owns the encrypted multi-account session, the Custom Tabs sign-in flow, the peer directory
  * provider/client pair, and supplies bearer tokens to [MailApiClient].
@@ -112,7 +112,7 @@ class GothwadMailAuth(
     /**
      * Zero-browser automatic sign-in.
      *
-     * When this app holds no session but a verified sibling Gothwad app on the device is already
+     * When this app holds no session but a verified sibling Bansify app on the device is already
      * signed in, ask it for a one-time PKCE code and redeem it in-process. The user sees no browser
      * and no permission screen. Any failure is reported as an event so the UI falls back to the
      * native sign-in sheet.
@@ -125,7 +125,7 @@ class GothwadMailAuth(
     /**
      * Copies **every** discovered peer account, not just the first one.
      *
-     * A user with three accounts in the Gothwad Accounts app expects all three to appear in Mail.
+     * A user with three accounts in the Bansify Accounts app expects all three to appear in Mail.
      * Each account needs its own one-time code, so they are requested in turn; one failing account
      * (for example because its session expired) must not stop the others.
      */
@@ -166,15 +166,15 @@ class GothwadMailAuth(
     fun describeSilentFailure(reason: String?): String = when (reason) {
         null, "" -> "Automatic sign-in was not available"
         "untrusted_caller" ->
-            "The Gothwad app on this device is not signed with the same key, so it cannot share the account"
+            "The Bansify app on this device is not signed with the same key, so it cannot share the account"
         "peer_code_unsupported", "no_response" ->
-            "The Gothwad app on this device is too old to share the account automatically"
+            "The Bansify app on this device is too old to share the account automatically"
         "account_not_signed_in", "no_session" ->
-            "The Gothwad app on this device is signed out, so there is no account to share"
-        "peer_discovery_disabled" -> "Account sharing between Gothwad apps is turned off in this build"
+            "The Bansify app on this device is signed out, so there is no account to share"
+        "peer_discovery_disabled" -> "Account sharing between Bansify apps is turned off in this build"
         "local_account" -> "That account already belongs to this app"
-        "peer_unreachable" -> "The Gothwad app on this device did not respond"
-        "exchange_failed" -> "Gothwad Accounts rejected the shared sign-in"
+        "peer_unreachable" -> "The Bansify app on this device did not respond"
+        "exchange_failed" -> "Bansify Accounts rejected the shared sign-in"
         else -> "Automatic sign-in was not available ($reason)"
     }
 
@@ -265,13 +265,13 @@ class GothwadMailAuth(
                 if (error.rejected) MailAuthFailure.SessionExpired else MailAuthFailure.Unavailable,
             )
             return NativeAuthOutcome.Failed(
-                message = (error.message ?: "Could not reach Gothwad Accounts"),
+                message = (error.message ?: "Could not reach Bansify Accounts"),
                 rejected = error.rejected,
             )
         } catch (error: Exception) {
             sessionManager.reportFailure(MailAuthFailure.Unavailable)
             return NativeAuthOutcome.Failed(
-                message = error.message ?: "Could not reach Gothwad Accounts",
+                message = error.message ?: "Could not reach Bansify Accounts",
                 rejected = false,
             )
         }
@@ -292,7 +292,7 @@ class GothwadMailAuth(
                     }
                 } catch (error: Exception) {
                     return NativeAuthOutcome.Failed(
-                        "Signed in, but the Gothwad profile could not be loaded",
+                        "Signed in, but the Bansify profile could not be loaded",
                         rejected = false,
                     )
                 }
@@ -312,7 +312,7 @@ class GothwadMailAuth(
     // --- Sign in -------------------------------------------------------------
 
     /**
-     * Opens Gothwad Accounts in Custom Tabs.
+     * Opens Bansify Accounts in Custom Tabs.
      *
      * @param chooseAccount opens `/signin?choose=1&next=...` so the user can pick another account.
      * @param loginHint pre-selects the account (used by the one-tap discovered accounts).
@@ -384,7 +384,7 @@ class GothwadMailAuth(
         }
     }
 
-    /** One-tap sign-in for an account discovered from a verified sibling Gothwad app. */
+    /** One-tap sign-in for an account discovered from a verified sibling Bansify app. */
     fun signInAsDiscovered(activity: Activity, discovered: DiscoveredAccount) {
         signIn(activity, chooseAccount = false, loginHint = discovered.username)
     }
@@ -419,7 +419,7 @@ class GothwadMailAuth(
         mutableEvents.emit(AuthEvent.SignedOut(account, outcome))
     }
 
-    /** Disconnects the Mail grant on the Gothwad Accounts server, then clears local tokens. */
+    /** Disconnects the Mail grant on the Bansify Accounts server, then clears local tokens. */
     fun disconnectFromServer(account: MailAuthAccount) = scope.launch {
         val outcome = sessionManager.signOut(account.userId, revokeOnServer = true)
         mutableEvents.emit(AuthEvent.SignedOut(account, outcome))

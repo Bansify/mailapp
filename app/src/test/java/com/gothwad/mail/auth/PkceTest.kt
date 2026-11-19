@@ -7,7 +7,7 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Verifies the S256 PKCE primitives against RFC 7636 and the Gothwad Accounts contract. */
+/** Verifies the S256 PKCE primitives against RFC 7636 and the Bansify Accounts contract. */
 class PkceTest {
 
     @Test
@@ -60,14 +60,14 @@ class PkceTest {
             createdAt = 1L,
         )
         val url = AuthorizeRequest.authorizeUrl(pending, loginHint = "pawan")
-        assertTrue(url.startsWith("https://accounts.gothwadtech.com/api/oauth/authorize?"))
+        assertTrue(url.startsWith("https://accounts.bansify.com/api/oauth/authorize?"))
         assertTrue(url.contains("client_id=gothwad-mail"))
         assertTrue(url.contains("response_type=code"))
         assertTrue(url.contains("code_challenge_method=S256"))
         assertTrue(url.contains("code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"))
         assertTrue(url.contains("state=state-value"))
         assertTrue(url.contains("login_hint=pawan"))
-        assertTrue(url.contains("redirect_uri=https%3A%2F%2Fmail.gothwadtech.com%2Foauth%2Fcallback"))
+        assertTrue(url.contains("redirect_uri=https%3A%2F%2Fmail.bansify.com%2Foauth%2Fcallback"))
         assertTrue(url.contains("scope=email%20mail%20offline_access%20profile"))
     }
 
@@ -78,7 +78,7 @@ class PkceTest {
         val chooser = AuthorizeRequest.chooseAccountUrl(authorize)
         assertTrue(
             "Chooser must sit on the site root, not under /api: $chooser",
-            chooser.startsWith("https://accounts.gothwadtech.com/signin?choose=1&next="),
+            chooser.startsWith("https://accounts.bansify.com/signin?choose=1&next="),
         )
         assertTrue(chooser.contains("oauth%2Fauthorize"))
     }

@@ -89,8 +89,8 @@ class CallbackValidatorTest {
 
     @Test
     fun `rejects a callback with a different scheme`() {
-        assertRejected("courier://mail.gothwadtech.com/oauth/callback?code=abc&state=$state")
-        assertRejected("http://mail.gothwadtech.com/oauth/callback?code=abc&state=$state")
+        assertRejected("courier://mail.bansify.com/oauth/callback?code=abc&state=$state")
+        assertRejected("http://mail.bansify.com/oauth/callback?code=abc&state=$state")
     }
 
     @Test
@@ -100,8 +100,8 @@ class CallbackValidatorTest {
 
     @Test
     fun `rejects a callback with a different path`() {
-        assertRejected("https://mail.gothwadtech.com/oauth/other?code=abc&state=$state")
-        assertRejected("https://mail.gothwadtech.com/oauth/callback/extra?code=abc&state=$state")
+        assertRejected("https://mail.bansify.com/oauth/other?code=abc&state=$state")
+        assertRejected("https://mail.bansify.com/oauth/callback/extra?code=abc&state=$state")
     }
 
     @Test
@@ -137,7 +137,7 @@ class CallbackValidatorTest {
     @Test
     fun `rejects fragments and user info`() {
         assertRejected("$redirect?code=abc&state=$state#fragment")
-        assertRejected("https://user:pass@mail.gothwadtech.com/oauth/callback?code=abc&state=$state")
+        assertRejected("https://user:pass@mail.bansify.com/oauth/callback?code=abc&state=$state")
     }
 
     @Test

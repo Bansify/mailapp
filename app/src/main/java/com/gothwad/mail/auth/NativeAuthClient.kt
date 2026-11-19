@@ -9,7 +9,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
 /**
- * Direct native authentication against `https://accounts.gothwadtech.com/api/mobile/auth/{endpoint}`.
+ * Direct native authentication against `https://accounts.bansify.com/api/mobile/auth/{endpoint}`.
  *
  * This is the primary sign-in path: it needs no browser, no Custom Tabs and no redirect, so it
  * works on a device where Chrome (or any browser) is missing. The OAuth 2.0 + PKCE browser flow
@@ -99,7 +99,7 @@ class NativeAuthClient(
 
     private inline fun <reified T> decode(raw: String): T =
         runCatching { json.decodeFromString<T>(raw) }
-            .getOrElse { throw MailOAuthException(false, "Gothwad Accounts returned an unreadable response", it) }
+            .getOrElse { throw MailOAuthException(false, "Bansify Accounts returned an unreadable response", it) }
 
     private fun post(path: String, payload: String): String =
         execute("$base$path", payload, expected = setOf(200, 201))
@@ -111,7 +111,7 @@ class NativeAuthClient(
     ): NativeAuthResult {
         val raw = execute("$base$path", payload, expected)
         val response = runCatching { json.decodeFromString<NativeAuthResponse>(raw) }.getOrElse {
-            throw MailOAuthException(false, "Gothwad Accounts returned an unreadable response", it)
+            throw MailOAuthException(false, "Bansify Accounts returned an unreadable response", it)
         }
         return response.toResult()
     }
@@ -125,7 +125,7 @@ class NativeAuthClient(
         val response = try {
             client.newCall(request).execute()
         } catch (error: IOException) {
-            throw MailOAuthException(false, "Could not reach Gothwad Accounts", error)
+            throw MailOAuthException(false, "Could not reach Bansify Accounts", error)
         }
         return response.use { result ->
             val body = result.body?.string().orEmpty()
@@ -144,6 +144,6 @@ class NativeAuthClient(
                     ?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content }
             }
         }.getOrNull()
-        return parsed?.takeIf { it.isNotBlank() } ?: "Gothwad Accounts request failed with HTTP $status"
+        return parsed?.takeIf { it.isNotBlank() } ?: "Bansify Accounts request failed with HTTP $status"
     }
 }

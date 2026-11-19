@@ -21,7 +21,7 @@ enum class QuickFilterChip(val label: String) {
     IMPORTANT("Important")
 }
 
-/** Where the app stands with Gothwad Accounts, driving the signed-out screen. */
+/** Where the app stands with Bansify Accounts, driving the signed-out screen. */
 enum class AuthScreenState {
     LOADING,
     SIGNED_OUT,

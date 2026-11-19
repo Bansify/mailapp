@@ -8,7 +8,7 @@ import com.gothwad.mail.data.remote.MailApiClient
 import com.gothwad.mail.data.repository.MailRepository
 
 /**
- * Application entry point. Wires the encrypted Gothwad auth session, the Mail Worker client and
+ * Application entry point. Wires the encrypted Bansify auth session, the Mail Worker client and
  * the per-account Room cache together.
  */
 class MailApplication : Application() {

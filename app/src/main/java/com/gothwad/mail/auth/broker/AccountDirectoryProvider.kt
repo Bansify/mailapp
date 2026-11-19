@@ -11,7 +11,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 /**
- * Exposes the non-secret Gothwad account directory to mutually certificate-verified sibling apps.
+ * Exposes the non-secret Bansify account directory to mutually certificate-verified sibling apps.
  *
  * Security properties:
  * - `Binder.getCallingUid()` is captured before any dispatch or storage access.
@@ -29,9 +29,9 @@ class AccountDirectoryProvider : ContentProvider() {
         val callingUid = Binder.getCallingUid()
         val ctx = context ?: throw SecurityException("Provider context unavailable")
 
-        val host = directoryHost ?: throw SecurityException("Gothwad peer broker is not configured")
+        val host = directoryHost ?: throw SecurityException("Bansify peer broker is not configured")
         val policy = host.brokerPolicy as? BrokerPolicy.PeerDiscovery
-            ?: throw SecurityException("Gothwad peer broker is disabled")
+            ?: throw SecurityException("Bansify peer broker is disabled")
 
         val verified = TrustVerifier.verifyBinderCaller(
             callingUid = callingUid,
@@ -137,12 +137,12 @@ class AccountDirectoryProvider : ContentProvider() {
 
     override fun insert(uri: Uri, values: ContentValues?): Uri? {
         enforceTrustedCaller()
-        throw UnsupportedOperationException("Insert is not supported by the Gothwad directory")
+        throw UnsupportedOperationException("Insert is not supported by the Bansify directory")
     }
 
     override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?): Int {
         enforceTrustedCaller()
-        throw UnsupportedOperationException("Delete is not supported by the Gothwad directory")
+        throw UnsupportedOperationException("Delete is not supported by the Bansify directory")
     }
 
     override fun update(
@@ -152,15 +152,15 @@ class AccountDirectoryProvider : ContentProvider() {
         selectionArgs: Array<out String>?,
     ): Int {
         enforceTrustedCaller()
-        throw UnsupportedOperationException("Update is not supported by the Gothwad directory")
+        throw UnsupportedOperationException("Update is not supported by the Bansify directory")
     }
 
     private fun enforceTrustedCaller() {
         val callingUid = Binder.getCallingUid()
         val ctx = context ?: throw SecurityException("Provider context unavailable")
-        val host = directoryHost ?: throw SecurityException("Gothwad peer broker is not configured")
+        val host = directoryHost ?: throw SecurityException("Bansify peer broker is not configured")
         val policy = host.brokerPolicy as? BrokerPolicy.PeerDiscovery
-            ?: throw SecurityException("Gothwad peer broker is disabled")
+            ?: throw SecurityException("Bansify peer broker is disabled")
         TrustVerifier.verifyBinderCaller(
             callingUid = callingUid,
             ownUid = Process.myUid(),
