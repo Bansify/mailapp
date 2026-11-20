@@ -74,7 +74,7 @@ fun AccountSwitcherDialog(
                     }
                     Spacer(modifier = Modifier.weight(1f))
                     Text(
-                        text = "Bansify Mail",
+                        text = "Bansify Email",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface

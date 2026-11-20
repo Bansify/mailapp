@@ -190,7 +190,7 @@ object MailMappers {
             starredMessages = existing?.starredMessages ?: 0,
             retentionLimit = existing?.retentionLimit ?: ApiMailSettings.RETENTION_500,
             unreadCount = existing?.unreadCount ?: 0,
-            signature = existing?.signature ?: "Sent from Bansify Mail",
+            signature = existing?.signature ?: "Sent from Bansify Email",
             vacationEnabled = existing?.vacationEnabled ?: false,
             vacationMessage = existing?.vacationMessage
                 ?: "Thanks for your email. I am currently away and will respond soon.",
@@ -226,7 +226,7 @@ object MailMappers {
             starredMessages = existing?.starredMessages ?: 0,
             retentionLimit = existing?.retentionLimit ?: ApiMailSettings.RETENTION_500,
             unreadCount = existing?.unreadCount ?: 0,
-            signature = existing?.signature ?: "Sent from Bansify Mail",
+            signature = existing?.signature ?: "Sent from Bansify Email",
             vacationEnabled = existing?.vacationEnabled ?: false,
             vacationMessage = existing?.vacationMessage
                 ?: "Thanks for your email. I am currently away and will respond soon.",

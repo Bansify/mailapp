@@ -1,8 +1,8 @@
-# Bansify Mail (Android)
+# Bansify Email (Android)
 
-A Material 3 email client for **Bansify Mail**, signed in with a **Bansify Account**.
+A Material 3 email client for **Bansify Email**, signed in with a **Bansify Account**.
 The app contains no demo or prototype data: every message, mailbox setting and account comes
-from Bansify Accounts OAuth 2.0 and the Bansify Mail Worker REST API.
+from Bansify Accounts OAuth 2.0 and the Bansify Email Worker REST API.
 
 ## Features
 
@@ -182,7 +182,7 @@ Link plus the reverse-DNS custom scheme, and the PKCE `code_verifier` never leav
 
 ## Manual device checks
 
-1. Cold start with no signed-in account shows the **Welcome to Bansify Mail** screen (no demo
+1. Cold start with no signed-in account shows the **Welcome to Bansify Email** screen (no demo
    mail), with **Sign in with Bansify** and **Use another account**.
 2. Signing in opens Custom Tabs; returning through
    `https://mail.bansify.com/oauth/callback` (or `com.gothwad.mail:/oauth/callback`) lands on
