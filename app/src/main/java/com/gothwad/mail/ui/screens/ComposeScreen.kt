@@ -151,11 +151,11 @@ fun ComposeScreen(
 
     val suggestedContacts = remember {
         listOf(
-            "ananya.verma@gothwadtech.dev",
-            "rohan@gothwadtech.dev",
-            "siddharth@gothwadtech.dev",
-            "vikram.mehta@mailapp.dev",
-            "team@gothwadtech.dev"
+            "ananya.verma@bansify.com",
+            "rohan@bansify.com",
+            "siddharth@bansify.com",
+            "vikram.mehta@bansify.com",
+            "team@bansify.com"
         )
     }
 
