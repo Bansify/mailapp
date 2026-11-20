@@ -51,7 +51,7 @@ import com.gothwad.mail.ui.state.NativeAuthUiState
  * 100% native Jetpack Compose sign-in, sign-up, two-factor and password-recovery sheet.
  *
  * It talks to `https://accounts.bansify.com/api/mobile/auth/{endpoint}` through the view model, so
- * Bansify Mail can sign in on a device with no browser at all. The browser flow stays available
+ * Bansify Email can sign in on a device with no browser at all. The browser flow stays available
  * from the same screen as the secondary "Sign in with browser" button.
  */
 @OptIn(ExperimentalMaterial3Api::class)

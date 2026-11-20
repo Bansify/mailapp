@@ -194,8 +194,8 @@ fun sendFailureMessage(error: Throwable): String = when {
     error is MailApiException && error.isUnauthenticated ->
         "Your Bansify Account session expired. Sign in again."
     error is MailApiException && error.isForbidden ->
-        "This Bansify Account cannot send mail from Bansify Mail"
-    error is java.io.IOException -> "Could not reach Bansify Mail. Check your connection and retry."
+        "This Bansify Account cannot send mail from Bansify Email"
+    error is java.io.IOException -> "Could not reach Bansify Email. Check your connection and retry."
     else -> "Could not send the message. Try again."
 }
 

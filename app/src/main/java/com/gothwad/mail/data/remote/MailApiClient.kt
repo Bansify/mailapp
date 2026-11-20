@@ -203,7 +203,7 @@ class MailApiClient(
         // The base URL is the only host this client ever talks to, and it is the only host that
         // ever receives the bearer token: attachment and image URLs bypass this client entirely.
         val token = tokenProvider.accessToken()
-            ?: throw MailApiException(401, MailApiErrorCode.UNAUTHENTICATED, "Not signed in to Bansify Mail")
+            ?: throw MailApiException(401, MailApiErrorCode.UNAUTHENTICATED, "Not signed in to Bansify Email")
         builder.header("Authorization", "Bearer $token")
         val request = builder.method(method, body).build()
         val response = try {
@@ -237,7 +237,7 @@ class MailApiClient(
         return MailApiException(
             statusCode = response.code,
             code = code,
-            message = "Bansify Mail request failed with HTTP ${response.code} ($code)",
+            message = "Bansify Email request failed with HTTP ${response.code} ($code)",
             retryAfterSeconds = retryAfter,
         )
     }
@@ -253,7 +253,7 @@ class MailApiClient(
          */
         fun assertSameHost(base: HttpUrl, url: HttpUrl) {
             require(url.scheme == base.scheme && url.host == base.host && url.port == base.port) {
-                "Refusing to send a Bansify Mail request to ${url.host}"
+                "Refusing to send a Bansify Email request to ${url.host}"
             }
         }
 

@@ -24,7 +24,7 @@ interface SessionListener {
 }
 
 /**
- * Multi-account OAuth session manager for Bansify Mail.
+ * Multi-account OAuth session manager for Bansify Email.
  *
  * Accounts are keyed by the immutable `userId` (`sub` of `/oauth/userinfo`). All mutations happen
  * under a single mutex and are persisted to the encrypted store, so process death cannot split

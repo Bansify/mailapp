@@ -206,7 +206,7 @@ fun SettingsScreen(
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                 Text(
-                    text = "Bansify Mail storage",
+                    text = "Bansify Email storage",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
@@ -253,7 +253,7 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = Icons.Rounded.LinkOff,
                     title = "Disconnect Mail grant on the server",
-                    subtitle = "Revokes Bansify Mail access in your Bansify Account",
+                    subtitle = "Revokes Bansify Email access in your Bansify Account",
                     onClick = onDisconnectFromServer
                 )
 
@@ -267,7 +267,7 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = Icons.Rounded.PrivacyTip,
                     title = "Privacy",
-                    subtitle = "How Bansify Mail handles your mail and tokens",
+                    subtitle = "How Bansify Email handles your mail and tokens",
                     onClick = onOpenPrivacyPolicy
                 )
             }
@@ -317,7 +317,7 @@ fun SettingsScreen(
             title = { Text("Sign out of this account?") },
             text = {
                 Text(
-                    "Your Bansify Mail tokens will be removed from this device. " +
+                    "Your Bansify Email tokens will be removed from this device. " +
                         "The Mail grant stays active in your Bansify Account, so other devices keep working."
                 )
             },

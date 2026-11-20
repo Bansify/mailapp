@@ -1,7 +1,7 @@
 package com.gothwad.mail.auth
 
 /**
- * Authoritative Bansify Accounts and Bansify Mail endpoints for the `gothwad-mail` client.
+ * Authoritative Bansify Accounts and Bansify Email endpoints for the `gothwad-mail` client.
  *
  * Values mirror the registration in `Bansify/accounts` and the Mail Worker contract in
  * `Bansify/mail`. Nothing here is user configurable at runtime: a wrong host would either
