@@ -1,4 +1,4 @@
-"""Static resource/config checks for Gothwad Mail; deliberately NOT a substitute for Gradle tests.
+"""Static resource/config checks for Bansify Email; deliberately NOT a substitute for Gradle tests.
 
 Mirrors `tools/check_android_scaffold.py` in GothwadTech/accountsapp (XML well-formedness, version
 catalog, pinned wrapper JAR) and adds the Mail-specific invariants that would otherwise only break
