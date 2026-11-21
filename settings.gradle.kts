@@ -16,6 +16,11 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // Bansify Accounts shared SDK (:core + :ui) is published from Bansify/accountsapp tags.
+        maven {
+            url = uri("https://jitpack.io")
+            content { includeGroupByRegex("com\\.github\\.Bansify.*") }
+        }
     }
 }
 

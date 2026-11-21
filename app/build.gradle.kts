@@ -77,6 +77,10 @@ kotlin {
 }
 
 dependencies {
+    // Shared Bansify Accounts SDK (same sign-in surface and account centre as every Bansify app).
+    implementation("com.github.Bansify.accountsapp:core:v1.0.11")
+    implementation("com.github.Bansify.accountsapp:ui:v1.0.11")
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
