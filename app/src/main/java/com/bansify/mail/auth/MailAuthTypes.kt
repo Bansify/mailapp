@@ -28,6 +28,6 @@ data class TokenResponse(
     val accessToken: String = "",
     val refreshToken: String? = null,
     val expiresIn: Long = 0L,
-    val scope: String = "",
+    val scope: String? = null,
     val tokenType: String = "Bearer",
 )

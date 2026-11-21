@@ -109,17 +109,20 @@ class MailAuth : MailAccessTokenProvider {
         GothwadAccounts.syncDiscoveredAccounts()
     }
 
-    suspend fun signInSilently(discovered: DiscoveredAccount): Boolean {
+    suspend fun signInSilently(discovered: DiscoveredAccount): MailAuthAccount? {
         val peer = GothwadAccounts.discoveredAccounts.value.firstOrNull { it.userId == discovered.userId }
         if (peer == null) {
             lastSilentFailureReason = "peer_not_found"
-            return false
+            return null
         }
-        return runCatching { GothwadAccounts.signInSilentlyWithPeer(peer).isSuccess }
-            .getOrElse { error ->
-                lastSilentFailureReason = error.message ?: "silent_sign_in_failed"
-                false
-            }
+        return runCatching { GothwadAccounts.signInSilentlyWithPeer(peer) }
+            .fold(
+                onSuccess = { result -> result.getOrNull()?.toMailAccount() ?: activeAccount()?.toMailAccount() },
+                onFailure = { error ->
+                    lastSilentFailureReason = error.message ?: "silent_sign_in_failed"
+                    null
+                },
+            )
     }
 
     suspend fun signInAllSilently(): Boolean {
