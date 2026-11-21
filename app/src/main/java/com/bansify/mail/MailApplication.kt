@@ -1,6 +1,11 @@
 package com.bansify.mail
 
 import android.app.Application
+import com.bansify.accounts.core.BrokerPolicy
+import com.bansify.accounts.core.BrokerTrustPolicy
+import com.bansify.accounts.core.GothwadAccounts
+import com.bansify.accounts.core.GothwadConfig
+import com.bansify.accounts.core.Scope
 import com.bansify.mail.auth.AuthConfig
 import com.bansify.mail.auth.GothwadMailAuth
 import com.bansify.mail.data.local.MailDatabase
@@ -30,5 +35,42 @@ class MailApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         auth.initialize()
+        initSharedAccountsSdk()
+    }
+
+    /**
+     * Initializes the shared Bansify Accounts SDK (`com.github.Bansify.accountsapp`).
+     *
+     * This is the same client the standalone Accounts app and every sibling Bansify app use, so the
+     * sign-in surface, the account centre and cross-app peer discovery stay identical everywhere.
+     * The SDK owns its own encrypted credential store; the legacy [auth] stack is still initialized
+     * until the UI migration in the follow-up change.
+     */
+    private fun initSharedAccountsSdk() {
+        GothwadAccounts.init(
+            this,
+            GothwadConfig(
+                clientId = "gothwad-mail",
+                redirectUri = if (BuildConfig.DEBUG) {
+                    "$packageName:/oauth/callback"
+                } else {
+                    "https://mail.bansify.com/oauth/callback"
+                },
+                scopes = setOf(
+                    Scope.Profile,
+                    Scope.Email,
+                    Scope.OfflineAccess,
+                    Scope.Mail,
+                    Scope.AccountRead,
+                    Scope.AccountProfileWrite,
+                ),
+                brokerPolicy = BrokerPolicy.PeerDiscovery(
+                    trustPolicy = BrokerTrustPolicy.SameSigningCertificate(
+                        allowDebugBuild = BuildConfig.DEBUG,
+                    ),
+                ),
+                allowCustomSchemeRedirect = BuildConfig.DEBUG,
+            ),
+        )
     }
 }
