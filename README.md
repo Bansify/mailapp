@@ -11,7 +11,7 @@ from Bansify Accounts OAuth 2.0 and the Bansify Email Worker REST API.
   six-digit 2FA, sign-up and password recovery (`forgot-password` / `reset-password`). It works on
   a device with **no browser installed at all**. The browser OAuth flow stays available as the
   secondary "Sign in with browser" button.
-- **Zero-browser cross-app silent SSO**: when `com.gothwad.accounts` (or another verified sibling
+- **Zero-browser cross-app silent SSO**: when `com.bansify.accounts` (or another verified sibling
   app) is already signed in on the device, Mail asks it for a one-time PKCE code over Binder IPC
   (`issue_peer_code`), redeems it through `/api/oauth/token` and signs in **automatically at
   startup — no browser, no permission screen**. **Every** account the peer holds is copied, not
@@ -30,7 +30,7 @@ from Bansify Accounts OAuth 2.0 and the Bansify Email Worker REST API.
   single-flight per account when less than 60 seconds remain, and rotated refresh tokens are
   persisted atomically.
 - **Peer account discovery**: mutually certificate-verified sibling Bansify apps on the same
-  device (`com.gothwad.accounts`, `com.gothwad.drive`, `com.gothwad.store`, `com.gothwad.tube`,
+  device (`com.bansify.accounts`, `com.gothwad.drive`, `com.gothwad.store`, `com.gothwad.tube`,
   sample builds) publish a non-secret account directory through a `ContentProvider`. Discovered
   accounts appear under **Available on this device** and sign in with one tap. Tokens never cross
   IPC.
@@ -52,7 +52,7 @@ from Bansify Accounts OAuth 2.0 and the Bansify Email Worker REST API.
 ## Architecture
 
 ```
-com.gothwad.mail
+com.bansify.mail
 ├── auth/                      Bansify Accounts OAuth 2.0 + PKCE and session storage
 │   ├── Pkce.kt                S256 verifier/challenge, state generation
 │   ├── CallbackValidator.kt   scheme/host/path/state/code validation
@@ -174,7 +174,7 @@ was invalid…") instead of failing silently.
 **The redirect opens Chrome instead of the app.** The App Link
 `https://mail.bansify.com/oauth/callback` is only verified when
 `https://mail.bansify.com/.well-known/assetlinks.json` lists this app's signing certificate
-SHA-256. Until it does, the `com.gothwad.mail:/oauth/callback` custom scheme still returns to the
+SHA-256. Until it does, the `com.bansify.mail:/oauth/callback` custom scheme still returns to the
 app; the release workflow prints the certificate SHA-256 in its step summary for exactly this.
 
 **The seed values below are not secrets.** `client_id` is public; the redirect must stay an App
@@ -185,9 +185,9 @@ Link plus the reverse-DNS custom scheme, and the PKCE `code_verifier` never leav
 1. Cold start with no signed-in account shows the **Welcome to Bansify Email** screen (no demo
    mail), with **Sign in with Bansify** and **Use another account**.
 2. Signing in opens Custom Tabs; returning through
-   `https://mail.bansify.com/oauth/callback` (or `com.gothwad.mail:/oauth/callback`) lands on
+   `https://mail.bansify.com/oauth/callback` (or `com.bansify.mail:/oauth/callback`) lands on
    the inbox with real messages.
-3. Install `com.gothwad.accounts` with a different signed-in account: it appears under
+3. Install `com.bansify.accounts` with a different signed-in account: it appears under
    **Available on this device** both on the welcome screen and in the account switcher; tapping it
    pre-fills `login_hint` in the Accounts sign-in page.
 4. Switch between two accounts: the list changes immediately and no message from the other

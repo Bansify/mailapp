@@ -11,13 +11,13 @@
         <intent>
             <action android:name="android.support.customtabs.action.CustomTabsService" />
         </intent>
-        <package android:name="com.gothwad.accounts" />
-        <package android:name="com.gothwad.mail" />
+        <package android:name="com.bansify.accounts" />
+        <package android:name="com.bansify.mail" />
         <package android:name="com.gothwad.drive" />
         <package android:name="com.gothwad.store" />
         <package android:name="com.gothwad.tube" />
-        <package android:name="com.gothwad.accounts.sample.alpha" />
-        <package android:name="com.gothwad.accounts.sample.beta" />
+        <package android:name="com.bansify.accounts.sample.alpha" />
+        <package android:name="com.bansify.accounts.sample.beta" />
     </queries>
 
     <application
@@ -50,7 +50,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <!-- Scheme-only on purpose: `com.gothwad.mail:/oauth/callback` puts `oauth` in the
+                <!-- Scheme-only on purpose: `com.bansify.mail:/oauth/callback` puts `oauth` in the
                      path, not the authority, so an `android:host` filter never matched it. -->
                 <data android:scheme="${gothwadRedirectScheme}" />
             </intent-filter>
@@ -67,7 +67,7 @@
 
         <provider
             android:name=".auth.broker.AccountDirectoryProvider"
-            android:authorities="${applicationId}.gothwad.account.directory"
+            android:authorities="${applicationId}.bansify.account.directory"
             android:exported="true" />
     </application>
 
