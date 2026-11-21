@@ -6,8 +6,7 @@ import com.bansify.accounts.core.BrokerTrustPolicy
 import com.bansify.accounts.core.GothwadAccounts
 import com.bansify.accounts.core.GothwadConfig
 import com.bansify.accounts.core.Scope
-import com.bansify.mail.auth.AuthConfig
-import com.bansify.mail.auth.GothwadMailAuth
+import com.bansify.mail.auth.MailAuth
 import com.bansify.mail.data.local.MailDatabase
 import com.bansify.mail.data.remote.MailApiClient
 import com.bansify.mail.data.repository.MailRepository
@@ -20,9 +19,7 @@ class MailApplication : Application() {
 
     val database: MailDatabase by lazy { MailDatabase.getInstance(this) }
 
-    val auth: GothwadMailAuth by lazy {
-        GothwadMailAuth(application = this, config = AuthConfig.DEFAULT)
-    }
+    val auth: MailAuth by lazy { MailAuth() }
 
     val apiClient: MailApiClient by lazy {
         MailApiClient(tokenProvider = auth)

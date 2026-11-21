@@ -98,9 +98,9 @@ else:
         element.attrib.get(f"{ANDROID_NS}name"): element
         for element in application.findall("activity")
     }
-    callback = activities.get(".auth.AccountCallbackActivity")
+    callback = activities.get("com.bansify.accounts.core.AccountCallbackActivity")
     if callback is None:
-        errors.append("Missing .auth.AccountCallbackActivity")
+        errors.append("Missing com.bansify.accounts.core.AccountCallbackActivity (shared SDK)")
     else:
         schemes = set()
         for intent_filter in callback.findall("intent-filter"):
@@ -129,9 +129,9 @@ else:
         element.attrib.get(f"{ANDROID_NS}name"): element
         for element in application.findall("provider")
     }
-    directory = providers.get(".auth.broker.AccountDirectoryProvider")
+    directory = providers.get("com.bansify.accounts.core.broker.AccountDirectoryProvider")
     if directory is None:
-        errors.append("Missing .auth.broker.AccountDirectoryProvider")
+        errors.append("Missing com.bansify.accounts.core.broker.AccountDirectoryProvider (shared SDK)")
     else:
         authority = directory.attrib.get(f"{ANDROID_NS}authorities", "")
         if "${applicationId}.bansify.account.directory" not in authority:

@@ -15,7 +15,7 @@ import com.bansify.mail.ui.screens.InboxScreen
 import com.bansify.mail.ui.screens.SearchScreen
 import com.bansify.mail.ui.screens.SettingsScreen
 import com.bansify.mail.ui.screens.NativeAuthSheet
-import com.bansify.mail.ui.screens.SignedOutScreen
+import com.bansify.accounts.ui.GothwadSignInScreen
 import com.bansify.mail.ui.state.NativeAuthStep
 import com.bansify.mail.ui.screens.ThreadDetailScreen
 import com.bansify.mail.ui.state.AuthScreenState
@@ -64,44 +64,13 @@ fun MailNavGraph(
     val activity = context as? android.app.Activity
 
     if (uiState.authState == AuthScreenState.SIGNED_OUT && uiState.allAccounts.isEmpty()) {
-        val nativeAuth by viewModel.nativeAuth.collectAsStateWithLifecycle()
-        SignedOutScreen(
-            uiState = uiState,
-            // Primary action: the 100% native sheet, so sign-in works with no browser installed.
-            onSignIn = { viewModel.openNativeSignIn() },
-            onUseAnotherAccount = { viewModel.openNativeSignUp() },
-            onContinueAsDiscovered = { discovered -> viewModel.signInSilently(discovered) },
-            onOpenAccountManager = {
-                if (activity != null) viewModel.openAccountManager(activity)
-            },
-            // Secondary: the original Chrome Custom Tabs OAuth 2.0 + PKCE flow.
-            onBrowserSignIn = {
-                if (activity != null) viewModel.signIn(activity)
-            },
-            onBrowserUseAnotherAccount = {
-                if (activity != null) viewModel.signIn(activity, chooseAccount = true)
-            }
-        )
-        NativeAuthSheet(
-            state = nativeAuth,
-            onDismiss = viewModel::dismissNativeAuth,
-            onSubmitIdentifier = viewModel::nativeSubmitIdentifier,
-            onSubmitPassword = viewModel::nativeSubmitPassword,
-            onSubmitMfa = viewModel::nativeSubmitMfa,
-            onSubmitSignUp = viewModel::nativeSubmitSignUp,
-            onForgotPassword = { identifier -> viewModel.nativeForgotPassword(identifier) },
-            onResetPassword = viewModel::nativeResetPassword,
-            onSwitchToSignUp = {
-                viewModel.nativeAuthUpdate { state -> state.copy(step = NativeAuthStep.SIGN_UP, error = null) }
-            },
-            onSwitchToSignIn = {
-                viewModel.nativeAuthUpdate { state -> state.copy(step = NativeAuthStep.IDENTIFIER, error = null) }
-            },
-            onUpdate = { transform -> viewModel.nativeAuthUpdate(transform) },
-            onBrowserSignIn = {
-                viewModel.dismissNativeAuth()
-                if (activity != null) viewModel.signIn(activity)
-            },
+        // The shared Bansify Accounts SDK renders the exact same sign-in / sign-up / MFA /
+        // peer-SSO surface that every other Bansify app shows, so there is only one login UI to
+        // maintain. It returns as soon as an account is authorized.
+        GothwadSignInScreen(
+            appName = "Bansify Mail",
+            onSignedInComplete = { viewModel.refreshDiscoveredAccounts() },
+            onClose = { },
         )
         return
     }
