@@ -95,7 +95,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
 
-    // Gothwad Accounts OAuth (Custom Tabs), encrypted token storage and the Mail Worker client.
+    // Bansify Accounts OAuth (Custom Tabs), encrypted token storage and the Mail Worker client.
     implementation(libs.androidx.browser)
     implementation(libs.androidx.security.crypto)
     implementation(libs.tink.android)
