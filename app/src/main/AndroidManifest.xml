@@ -40,7 +40,7 @@
         </activity>
 
         <activity
-            android:name=".auth.AccountCallbackActivity"
+            android:name="com.bansify.accounts.core.AccountCallbackActivity"
             android:exported="true"
             android:excludeFromRecents="true"
             android:launchMode="singleTask"
@@ -66,7 +66,7 @@
         </activity>
 
         <provider
-            android:name=".auth.broker.AccountDirectoryProvider"
+            android:name="com.bansify.accounts.core.broker.AccountDirectoryProvider"
             android:authorities="${applicationId}.bansify.account.directory"
             android:exported="true" />
     </application>

@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.bansify.mail.auth.AuthSessionState
 import com.bansify.mail.auth.AuthEvent
-import com.bansify.mail.auth.GothwadMailAuth
+import com.bansify.mail.auth.MailAuth
 import com.bansify.mail.auth.MailAuthAccount
 import com.bansify.mail.auth.ApiNativeSignUpRequest
 import com.bansify.mail.auth.MailAuthFailure
@@ -86,7 +86,7 @@ private data class LocalNavState(
  */
 class MailViewModel(
     private val repository: MailRepository,
-    private val auth: GothwadMailAuth,
+    private val auth: MailAuth,
     private val tokenProvider: MailAccessTokenProvider,
 ) : ViewModel() {
 
@@ -1222,7 +1222,7 @@ class MailViewModel(
 
     class Factory(
         private val repository: MailRepository,
-        private val auth: GothwadMailAuth,
+        private val auth: MailAuth,
         private val tokenProvider: MailAccessTokenProvider
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
