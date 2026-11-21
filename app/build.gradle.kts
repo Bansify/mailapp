@@ -11,16 +11,16 @@ val resolvedVersionCode = (findProperty("versionCode") as? String)?.toIntOrNull(
 val resolvedVersionName = (findProperty("versionName") as? String)?.takeIf { it.isNotBlank() } ?: "1.0"
 
 android {
-    namespace = "com.gothwad.mail"
+    namespace = "com.bansify.mail"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.gothwad.mail"
+        applicationId = "com.bansify.mail"
         minSdk = 26
         targetSdk = 36
         versionCode = resolvedVersionCode
         versionName = resolvedVersionName
-        manifestPlaceholders["gothwadRedirectScheme"] = "com.gothwad.mail"
+        manifestPlaceholders["gothwadRedirectScheme"] = "com.bansify.mail"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

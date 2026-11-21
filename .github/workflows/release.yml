@@ -212,7 +212,7 @@ jobs:
             CERT_HEX=$(echo "$CERT_COLON" | tr -d ':' | tr '[:upper:]' '[:lower:]')
             {
               echo "### Bansify Email v${V_NAME} Release Signing Identity"
-              echo "- Package: \`com.gothwad.mail\`"
+              echo "- Package: \`com.bansify.mail\`"
               echo "- App Link SHA-256 (\`assetlinks.json\`): \`${CERT_COLON}\`"
               echo "- D1 \`ecosystem_apps\` SHA-256 (lowercase hex): \`${CERT_HEX}\`"
             } >> "$GITHUB_STEP_SUMMARY"

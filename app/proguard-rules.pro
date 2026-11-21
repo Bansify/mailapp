@@ -1,10 +1,10 @@
 # Keep kotlinx.serialization generated serializers for the API/auth models.
 -keepattributes *Annotation*, InnerClasses
 -dontnote kotlinx.serialization.**
--keepclassmembers class com.gothwad.mail.** {
+-keepclassmembers class com.bansify.mail.** {
     *** Companion;
 }
--keepclasseswithmembers class com.gothwad.mail.** {
+-keepclasseswithmembers class com.bansify.mail.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
 # OkHttp platform hints.

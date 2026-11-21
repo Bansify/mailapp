@@ -108,7 +108,7 @@ else:
                 schemes.add(data.attrib.get(f"{ANDROID_NS}scheme"))
         if "${gothwadRedirectScheme}" not in schemes:
             errors.append("Callback activity must accept the ${gothwadRedirectScheme} custom scheme")
-        # `com.gothwad.mail:/oauth/callback` is single-slash, so `oauth` lands in the path and is
+        # `com.bansify.mail:/oauth/callback` is single-slash, so `oauth` lands in the path and is
         # never an authority. An explicit host therefore breaks interception of the redirect.
         for intent_filter in callback.findall("intent-filter"):
             for data in intent_filter.findall("data"):
@@ -134,17 +134,17 @@ else:
         errors.append("Missing .auth.broker.AccountDirectoryProvider")
     else:
         authority = directory.attrib.get(f"{ANDROID_NS}authorities", "")
-        if "${applicationId}.gothwad.account.directory" not in authority:
-            errors.append("Directory provider authority must be ${applicationId}.gothwad.account.directory")
-        if "com.gothwad.accounts" not in (root / "app/src/main/java/com/gothwad/mail/auth/broker/BrokerModels.kt").read_text(encoding="utf-8"):
-            errors.append("BrokerModels.kt no longer references com.gothwad.accounts")
+        if "${applicationId}.bansify.account.directory" not in authority:
+            errors.append("Directory provider authority must be ${applicationId}.bansify.account.directory")
+        if "com.bansify.accounts" not in (root / "app/src/main/java/com/bansify/mail/auth/broker/BrokerModels.kt").read_text(encoding="utf-8"):
+            errors.append("BrokerModels.kt no longer references com.bansify.accounts")
 
     package_queries = {
         element.attrib.get(f"{ANDROID_NS}name")
         for element in manifest.findall("queries/package")
     }
-    if "com.gothwad.accounts" not in package_queries:
-        errors.append("The <queries> block must name com.gothwad.accounts for Custom Tabs discovery")
+    if "com.bansify.accounts" not in package_queries:
+        errors.append("The <queries> block must name com.bansify.accounts for Custom Tabs discovery")
 
 # --- Build script contracts ------------------------------------------------------
 
@@ -154,7 +154,7 @@ if not build_script.is_file():
 else:
     build_text = build_script.read_text(encoding="utf-8")
     checks = {
-        'applicationId = "com.gothwad.mail"': "applicationId must stay com.gothwad.mail",
+        'applicationId = "com.bansify.mail"': "applicationId must stay com.bansify.mail",
         "compileSdk = 36": "compileSdk must stay 36",
         "minSdk = 26": "minSdk must stay 26",
         "targetSdk = 36": "targetSdk must stay 36",
