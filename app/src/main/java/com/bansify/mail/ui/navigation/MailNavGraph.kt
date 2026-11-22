@@ -71,17 +71,32 @@ fun MailNavGraph(
         // The shared Bansify Accounts SDK renders the exact same sign-in / sign-up / MFA /
         // peer-SSO surface that every other Bansify app shows, so there is only one login UI to
         // maintain. It returns as soon as an account is authorized.
-        val startupError = (context.applicationContext as? com.bansify.mail.MailApplication)?.startupError
-        if (startupError != null) {
-            // The shared Accounts SDK could not start; show the reason instead of a blank screen.
-            androidx.compose.material3.Surface(
-                modifier = androidx.compose.ui.Modifier.fillMaxSize(),
-            ) {
-                androidx.compose.material3.Text(
-                    text = "Accounts could not start:\n\n" + startupError,
-                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                    modifier = androidx.compose.ui.Modifier.padding(24.dp),
-                )
+        val app = context.applicationContext as? com.bansify.mail.MailApplication
+        val startupError = app?.startupError
+        val lastCrash = app?.lastCrash
+        if (startupError != null || lastCrash != null) {
+            // Surface the reason instead of a blank screen: an SDK start-up failure or the stack
+            // trace captured from the previous launch.
+            androidx.compose.material3.Surface(modifier = Modifier.fillMaxSize()) {
+                androidx.compose.foundation.layout.Column(modifier = Modifier.padding(24.dp)) {
+                    androidx.compose.material3.Text(
+                        text = "Bansify Mail could not start",
+                        style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                    )
+                    androidx.compose.material3.Text(
+                        text = (startupError ?: lastCrash).orEmpty(),
+                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                    if (lastCrash != null) {
+                        androidx.compose.material3.Button(
+                            onClick = { app?.clearLastCrash() },
+                            modifier = Modifier.padding(top = 16.dp),
+                        ) {
+                            androidx.compose.material3.Text("Dismiss")
+                        }
+                    }
+                }
             }
             return
         }
