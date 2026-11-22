@@ -58,15 +58,18 @@ class MailAuth : MailAccessTokenProvider {
             GothwadAccounts.clearError()
         }
 
-        val failure: StateFlow<MailAuthFailure?> = GothwadAccounts.error
-            .map { failure -> failure?.toMailFailure() }
-            .stateIn(scope = scope, started = SharingStarted.Eagerly, initialValue = null)
+        val failure: StateFlow<MailAuthFailure?> by lazy {
+            GothwadAccounts.error
+                .map { failure -> failure?.toMailFailure() }
+                .stateIn(scope = scope, started = SharingStarted.Eagerly, initialValue = null)
+        }
     }
 
     val sessionManager = SessionBridge()
 
     /** Signed-in accounts, mapped to the UI model. */
-    val state: StateFlow<AuthSessionState> = GothwadAccounts.state
+    val state: StateFlow<AuthSessionState> by lazy {
+        GothwadAccounts.state
         .map { sdkState ->
             when (sdkState) {
                 is AccountState.Initializing -> AuthSessionState.Initializing
@@ -79,11 +82,14 @@ class MailAuth : MailAccessTokenProvider {
             }
         }
         .stateIn(scope = scope, started = SharingStarted.Eagerly, initialValue = AuthSessionState.Initializing)
+    }
 
     /** Device-wide, zero-token account directory (local accounts + verified sibling apps). */
-    val discoveredAccounts: StateFlow<List<DiscoveredAccount>> = GothwadAccounts.discoveredAccounts
-        .map { peers -> peers.map { it.toMailDiscoveredAccount() } }
-        .stateIn(scope = scope, started = SharingStarted.Eagerly, initialValue = emptyList())
+    val discoveredAccounts: StateFlow<List<DiscoveredAccount>> by lazy {
+        GothwadAccounts.discoveredAccounts
+            .map { peers -> peers.map { it.toMailDiscoveredAccount() } }
+            .stateIn(scope = scope, started = SharingStarted.Eagerly, initialValue = emptyList())
+    }
 
     private val mutableEvents = MutableSharedFlow<AuthEvent>(extraBufferCapacity = 8)
     val events: SharedFlow<AuthEvent> = mutableEvents.asSharedFlow()

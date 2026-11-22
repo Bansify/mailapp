@@ -30,10 +30,18 @@ class MailApplication : Application() {
         MailRepository(database.mailDao(), apiClient)
     }
 
+    /** Stack trace of the previous launch's crash, if any. */
+    var lastCrash: String? = null
+        private set
+
     override fun onCreate() {
         super.onCreate()
-        auth.initialize()
+        CrashReporter.install(this)
+        lastCrash = CrashReporter.read(this)
+        // The SDK must be initialised before anything reads GothwadAccounts.state: its session is a
+        // lateinit and touching it earlier throws UninitializedPropertyAccessException on launch.
         initSharedAccountsSdk()
+        auth.initialize()
     }
 
     /**
@@ -47,6 +55,11 @@ class MailApplication : Application() {
     /** Set when the shared Accounts SDK could not be initialised; the UI shows it instead of crashing. */
     var startupError: String? = null
         private set
+
+    fun clearLastCrash() {
+        lastCrash = null
+        CrashReporter.clear(this)
+    }
 
     private fun initSharedAccountsSdk() {
         runCatching {
