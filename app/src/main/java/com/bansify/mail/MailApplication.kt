@@ -1,6 +1,7 @@
 package com.bansify.mail
 
 import android.app.Application
+import android.util.Log
 import com.bansify.accounts.core.BrokerPolicy
 import com.bansify.accounts.core.BrokerTrustPolicy
 import com.bansify.accounts.core.GothwadAccounts
@@ -43,31 +44,40 @@ class MailApplication : Application() {
      * The SDK owns its own encrypted credential store; the legacy [auth] stack is still initialized
      * until the UI migration in the follow-up change.
      */
+    /** Set when the shared Accounts SDK could not be initialised; the UI shows it instead of crashing. */
+    var startupError: String? = null
+        private set
+
     private fun initSharedAccountsSdk() {
-        GothwadAccounts.init(
-            this,
-            GothwadConfig(
-                clientId = "gothwad-mail",
-                redirectUri = if (BuildConfig.DEBUG) {
-                    "$packageName:/oauth/callback"
-                } else {
-                    "https://mail.bansify.com/oauth/callback"
-                },
-                scopes = setOf(
-                    Scope.Profile,
-                    Scope.Email,
-                    Scope.OfflineAccess,
-                    Scope.Mail,
-                    Scope.AccountRead,
-                    Scope.AccountProfileWrite,
-                ),
-                brokerPolicy = BrokerPolicy.PeerDiscovery(
-                    trustPolicy = BrokerTrustPolicy.SameSigningCertificate(
-                        allowDebugBuild = BuildConfig.DEBUG,
+        runCatching {
+            GothwadAccounts.init(
+                this,
+                GothwadConfig(
+                    clientId = "gothwad-mail",
+                    redirectUri = if (BuildConfig.DEBUG) {
+                        "$packageName:/oauth/callback"
+                    } else {
+                        "https://mail.bansify.com/oauth/callback"
+                    },
+                    scopes = setOf(
+                        Scope.Profile,
+                        Scope.Email,
+                        Scope.OfflineAccess,
+                        Scope.Mail,
+                        Scope.AccountRead,
+                        Scope.AccountProfileWrite,
                     ),
+                    brokerPolicy = BrokerPolicy.PeerDiscovery(
+                        trustPolicy = BrokerTrustPolicy.SameSigningCertificate(
+                            allowDebugBuild = BuildConfig.DEBUG,
+                        ),
+                    ),
+                    allowCustomSchemeRedirect = BuildConfig.DEBUG,
                 ),
-                allowCustomSchemeRedirect = BuildConfig.DEBUG,
-            ),
-        )
+            )
+        }.onFailure { error ->
+            startupError = error.stackTraceToString().lineSequence().take(4).joinToString("\n")
+            Log.e("MailApplication", "Accounts SDK init failed", error)
+        }
     }
 }

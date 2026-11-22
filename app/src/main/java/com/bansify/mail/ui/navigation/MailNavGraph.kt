@@ -1,6 +1,10 @@
 package com.bansify.mail.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Modifier
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -67,6 +71,20 @@ fun MailNavGraph(
         // The shared Bansify Accounts SDK renders the exact same sign-in / sign-up / MFA /
         // peer-SSO surface that every other Bansify app shows, so there is only one login UI to
         // maintain. It returns as soon as an account is authorized.
+        val startupError = (context.applicationContext as? com.bansify.mail.MailApplication)?.startupError
+        if (startupError != null) {
+            // The shared Accounts SDK could not start; show the reason instead of a blank screen.
+            androidx.compose.material3.Surface(
+                modifier = androidx.compose.ui.Modifier.fillMaxSize(),
+            ) {
+                androidx.compose.material3.Text(
+                    text = "Accounts could not start:\n\n" + startupError,
+                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                    modifier = androidx.compose.ui.Modifier.padding(24.dp),
+                )
+            }
+            return
+        }
         GothwadSignInScreen(
             appName = "Bansify Mail",
             onSignedInComplete = { viewModel.refreshDiscoveredAccounts() },
