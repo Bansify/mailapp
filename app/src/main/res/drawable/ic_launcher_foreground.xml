@@ -1,8 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:width="66dp"
-        android:height="66dp"
-        android:drawable="@drawable/img_mail_launcher_fg"
-        android:gravity="center" />
-</layer-list>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M36.36,69.84 L36.36,39.96 L54.00,58.68"
+        android:strokeColor="#FF9933"
+        android:strokeWidth="7.06"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M71.64,69.84 L71.64,39.96 L54.00,58.68"
+        android:strokeColor="#138808"
+        android:strokeWidth="7.06"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M36.36,69.84 L71.64,69.84"
+        android:strokeColor="#0494f4"
+        android:strokeWidth="7.06"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>
