@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   release:
-    name: Build, Sign & Publish Bansify Email APK
+    name: Build, Sign & Publish Bansify Mail APK
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -152,7 +152,7 @@ jobs:
           V_NAME="${{ steps.versioning.outputs.v_name }}"
           DEBUG_APK=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1 || true)
           if [ -n "$DEBUG_APK" ]; then
-            cp "$DEBUG_APK" "release_out/BansifyEmail-v${V_NAME}-Debug.apk"
+            cp "$DEBUG_APK" "release_out/BansifyMail-v${V_NAME}-Debug.apk"
           fi
 
       - name: Sign Release APK & AAB using Repository Keystore Secrets
@@ -196,7 +196,7 @@ jobs:
               cp "$UNSIGNED_APK" "$UNALIGNED_TEMP"
             fi
 
-            RELEASE_APK="release_out/BansifyEmail-v${V_NAME}-Release.apk"
+            RELEASE_APK="release_out/BansifyMail-v${V_NAME}-Release.apk"
             "$APKSIGNER" sign \
               --ks "$KS_PATH" \
               --ks-key-alias "$ACTUAL_ALIAS" \
@@ -211,7 +211,7 @@ jobs:
             CERT_COLON=$(keytool -list -v -keystore "$KS_PATH" -alias "$ACTUAL_ALIAS" -storepass "$KEYSTORE_PASS" 2>/dev/null | grep -i "SHA256:" | head -n 1 | sed 's/.*SHA256: //I' | tr -d '\r' | xargs || true)
             CERT_HEX=$(echo "$CERT_COLON" | tr -d ':' | tr '[:upper:]' '[:lower:]')
             {
-              echo "### Bansify Email v${V_NAME} Release Signing Identity"
+              echo "### Bansify Mail v${V_NAME} Release Signing Identity"
               echo "- Package: \`com.bansify.mail\`"
               echo "- App Link SHA-256 (\`assetlinks.json\`): \`${CERT_COLON}\`"
               echo "- D1 \`ecosystem_apps\` SHA-256 (lowercase hex): \`${CERT_HEX}\`"
@@ -219,7 +219,7 @@ jobs:
           fi
 
           if [ -n "$UNSIGNED_AAB" ]; then
-            RELEASE_AAB="release_out/BansifyEmail-v${V_NAME}-PlayStore.aab"
+            RELEASE_AAB="release_out/BansifyMail-v${V_NAME}-PlayStore.aab"
             cp "$UNSIGNED_AAB" "$RELEASE_AAB"
             jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
               -keystore "$KS_PATH" \
@@ -240,17 +240,17 @@ jobs:
           UNSIGNED_APK=$(find app/build/outputs/apk/release/ -name "*.apk" | head -n 1 || true)
           UNSIGNED_AAB=$(find app/build/outputs/bundle/release/ -name "*.aab" | head -n 1 || true)
           if [ -n "$UNSIGNED_APK" ]; then
-            cp "$UNSIGNED_APK" "release_out/BansifyEmail-v${V_NAME}-Release-UNSIGNED.apk"
+            cp "$UNSIGNED_APK" "release_out/BansifyMail-v${V_NAME}-Release-UNSIGNED.apk"
           fi
           if [ -n "$UNSIGNED_AAB" ]; then
-            cp "$UNSIGNED_AAB" "release_out/BansifyEmail-v${V_NAME}-PlayStore-UNSIGNED.aab"
+            cp "$UNSIGNED_AAB" "release_out/BansifyMail-v${V_NAME}-PlayStore-UNSIGNED.aab"
           fi
 
       - name: Write checksums
         run: |
           set -euo pipefail
           cd release_out
-          sha256sum BansifyEmail-* > SHA256SUMS.txt
+          sha256sum BansifyMail-* > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: Upload Build Artifacts
