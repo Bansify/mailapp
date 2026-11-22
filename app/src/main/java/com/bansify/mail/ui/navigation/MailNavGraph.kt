@@ -1,5 +1,13 @@
 package com.bansify.mail.ui.navigation
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.unit.dp
@@ -108,10 +116,33 @@ fun MailNavGraph(
         return
     }
 
-    NavHost(
-        navController = navController,
-        startDestination = InboxRoute
-    ) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        // A failed sync used to leave the inbox silently empty; surface the reason instead.
+        uiState.syncError?.let { message ->
+            Surface(
+                color = MaterialTheme.colorScheme.errorContainer,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = { viewModel.refreshCurrentFolder(showSpinner = true) }) {
+                        Text("Retry")
+                    }
+                }
+            }
+        }
+        NavHost(
+            navController = navController,
+            startDestination = InboxRoute
+        ) {
         composable<InboxRoute> {
             InboxScreen(
                 uiState = uiState,
@@ -291,5 +322,6 @@ fun MailNavGraph(
                 onOpenPrivacyPolicy = { navController.popBackStack() }
             )
         }
+    }
     }
 }
