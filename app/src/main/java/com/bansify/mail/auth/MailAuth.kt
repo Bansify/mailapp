@@ -24,7 +24,7 @@ import kotlinx.coroutines.flow.stateIn
 /**
  * Mail's thin facade over the shared Bansify Accounts SDK (`com.github.Bansify.accountsapp:core`).
  *
- * Bansify Email no longer ships its own PKCE client, encrypted token store, callback activity or
+ * Bansify Mail no longer ships its own PKCE client, encrypted token store, callback activity or
  * peer broker. The SDK owns credentials, refresh, cross-app discovery and the account centre, so the
  * sign-in experience is identical in every Bansify app. This class only translates SDK state into
  * the model types the Mail UI already renders.

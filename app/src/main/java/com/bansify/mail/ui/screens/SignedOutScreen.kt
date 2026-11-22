@@ -44,7 +44,7 @@ import com.bansify.mail.ui.state.AuthScreenState
 import com.bansify.mail.ui.state.MailUiState
 
 /**
- * Clean Bansify Email welcome screen shown when no account holds a Mail grant.
+ * Clean Bansify Mail welcome screen shown when no account holds a Mail grant.
  *
  * It offers the primary Bansify sign-in, the Accounts account chooser, and one-tap sign-in for any
  * accounts discovered on this device through the verified peer directory.
@@ -91,14 +91,14 @@ fun SignedOutScreen(
                 Spacer(modifier = Modifier.height(22.dp))
 
                 Text(
-                    text = "Bansify Email",
+                    text = "Bansify Mail",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Welcome to Bansify Email",
+                    text = "Welcome to Bansify Mail",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center

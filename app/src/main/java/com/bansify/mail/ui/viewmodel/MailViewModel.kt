@@ -249,7 +249,7 @@ class MailViewModel(
         com.bansify.mail.auth.DisconnectOutcome.AlreadyInvalidOnServer -> "Signed out; the grant was already invalid"
         com.bansify.mail.auth.DisconnectOutcome.OfflineRemovedLocally ->
             "Signed out on this device; the server grant could not be confirmed"
-        com.bansify.mail.auth.DisconnectOutcome.LocalOnly -> "Signed out of Bansify Email"
+        com.bansify.mail.auth.DisconnectOutcome.LocalOnly -> "Signed out of Bansify Mail"
     }
 
     private fun describeFailure(failure: MailAuthFailure): String = when (failure) {
@@ -623,8 +623,8 @@ class MailViewModel(
                             "Your Bansify Account session expired. Sign in again."
                         } else {
                             error.message?.takeIf { message -> message.isNotBlank() }
-                                ?.let { message -> "Could not sync Bansify Email: $message" }
-                                ?: "Could not sync Bansify Email"
+                                ?.let { message -> "Could not sync Bansify Mail: $message" }
+                                ?: "Could not sync Bansify Mail"
                         },
                     )
                 }
@@ -632,8 +632,8 @@ class MailViewModel(
                 localState.update {
                     it.copy(
                         syncError = error.message?.takeIf { message -> message.isNotBlank() }
-                            ?.let { message -> "Could not sync Bansify Email: $message" }
-                            ?: "Could not sync Bansify Email",
+                            ?.let { message -> "Could not sync Bansify Mail: $message" }
+                            ?: "Could not sync Bansify Mail",
                     )
                 }
             } finally {
@@ -807,12 +807,12 @@ class MailViewModel(
 
     fun snoozeThread(thread: EmailThreadEntity, untilLabel: String) {
         _snackbarEvents.tryEmit(
-            MailSnackbarEvent.SimpleMessage("Snooze is not available for Bansify Email yet — $untilLabel"),
+            MailSnackbarEvent.SimpleMessage("Snooze is not available for Bansify Mail yet — $untilLabel"),
         )
     }
 
     fun updateLabels(thread: EmailThreadEntity, labels: List<String>) {
-        _snackbarEvents.tryEmit(MailSnackbarEvent.SimpleMessage("Labels are not available for Bansify Email yet"))
+        _snackbarEvents.tryEmit(MailSnackbarEvent.SimpleMessage("Labels are not available for Bansify Mail yet"))
     }
 
     /** `DELETE /api/mail/trash` for the active account. */
@@ -985,7 +985,7 @@ class MailViewModel(
         viewModelScope.launch {
             if (scheduledForMillis != null) {
                 _snackbarEvents.emit(
-                    MailSnackbarEvent.SimpleMessage("Scheduled send is not available for Bansify Email yet"),
+                    MailSnackbarEvent.SimpleMessage("Scheduled send is not available for Bansify Mail yet"),
                 )
                 return@launch
             }

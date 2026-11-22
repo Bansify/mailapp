@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Bansify Email</string>
+    <string name="app_name">Bansify Mail</string>
     <string name="search_in_mail">Search in mail</string>
     <string name="compose">Compose</string>
     <string name="nav_mail">Mail</string>
@@ -18,7 +18,7 @@
     <string name="empty_folder_subtitle">Messages you organize or receive here will appear cleanly in this folder.</string>
     <string name="empty_search_title">No matching emails</string>
     <string name="empty_search_subtitle">Try searching another keyword, sender name, or clearing your filters.</string>
-    <string name="signed_out_title">Welcome to Bansify Email</string>
+    <string name="signed_out_title">Welcome to Bansify Mail</string>
     <string name="signed_out_subtitle">Sign in with your Bansify Account to read and send email</string>
     <string name="sign_in_with_gothwad">Sign in with Bansify</string>
     <string name="use_another_account">Use another account</string>

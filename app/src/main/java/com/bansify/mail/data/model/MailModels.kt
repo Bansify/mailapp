@@ -192,7 +192,7 @@ data class MailAccountEntity(
     val starredMessages: Int = 0,
     val retentionLimit: Int = 500,
     val unreadCount: Int = 0,
-    val signature: String = "Sent from Bansify Email",
+    val signature: String = "Sent from Bansify Mail",
     val vacationEnabled: Boolean = false,
     val vacationMessage: String = "Thanks for your email. I am currently away and will respond soon.",
     val isActive: Boolean = false
