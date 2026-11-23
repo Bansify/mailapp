@@ -109,7 +109,8 @@ data class ThreadMessage(
     val timestampMillis: Long,
     val isStarred: Boolean = false,
     val attachments: List<AttachmentItem> = emptyList(),
-    val isEncryptedTls: Boolean = true
+    val isEncryptedTls: Boolean = true,
+    val bodyHtml: String? = null
 )
 
 /**
@@ -216,7 +217,7 @@ data class AppSettingsEntity(
     @PrimaryKey val id: Int = 1,
     val themePreference: ThemePreference = ThemePreference.SYSTEM,
     val rightSwipeAction: SwipeAction = SwipeAction.ARCHIVE,
-    val leftSwipeAction: SwipeAction = SwipeAction.DELETE,
+    val leftSwipeAction: SwipeAction = SwipeAction.ARCHIVE,
     val compactDensity: Boolean = false,
     val conversationView: Boolean = true,
     val confirmBeforeDelete: Boolean = false

@@ -73,6 +73,7 @@ fun MailNavGraph(
     uiState: MailUiState
 ) {
     val navController = rememberNavController()
+    val nativeAuth by viewModel.nativeAuth.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val activity = context as? android.app.Activity
 
@@ -327,4 +328,19 @@ fun MailNavGraph(
         }
     }
     }
+
+    NativeAuthSheet(
+        state = nativeAuth,
+        onDismiss = viewModel::dismissNativeAuth,
+        onSubmitIdentifier = viewModel::nativeSubmitIdentifier,
+        onSubmitPassword = viewModel::nativeSubmitPassword,
+        onSubmitMfa = viewModel::nativeSubmitMfa,
+        onSubmitSignUp = viewModel::nativeSubmitSignUp,
+        onForgotPassword = viewModel::nativeForgotPassword,
+        onResetPassword = viewModel::nativeResetPassword,
+        onSwitchToSignUp = viewModel::openNativeSignUp,
+        onSwitchToSignIn = viewModel::openNativeSignIn,
+        onUpdate = viewModel::nativeAuthUpdate,
+        onBrowserSignIn = { activity?.let { viewModel.signIn(it, chooseAccount = true) } }
+    )
 }

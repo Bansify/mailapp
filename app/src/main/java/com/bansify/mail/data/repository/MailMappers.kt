@@ -96,6 +96,7 @@ object MailMappers {
             timestampMillis = timestamp,
             isStarred = message.isStarred,
             attachments = attachments,
+            bodyHtml = message.bodyHtml ?: existing?.bodyHtml,
         )
         return EmailThreadEntity(
             id = EmailThreadEntity.cacheKeyFor(accountEmail, message.id),
@@ -134,8 +135,10 @@ object MailMappers {
         } else {
             bodyText
         }
-        val updatedMessage = existing.messages.firstOrNull()?.copy(
+        val existingFirst = existing.messages.firstOrNull()
+        val updatedMessage = existingFirst?.copy(
             body = body,
+            bodyHtml = message.bodyHtml ?: existing.bodyHtml,
             attachments = if (message.attachments.isNotEmpty()) {
                 message.attachments.mapIndexed { index, attachment ->
                     AttachmentItem(
@@ -146,8 +149,26 @@ object MailMappers {
                     )
                 }
             } else {
-                existing.messages.first().attachments
+                existingFirst.attachments
             },
+        ) ?: ThreadMessage(
+            id = message.id,
+            senderName = existing.primarySenderName,
+            senderEmail = existing.primarySenderEmail,
+            senderColorHex = existing.primarySenderColorHex,
+            recipientsTo = listOf(existing.accountEmail),
+            body = body,
+            bodyHtml = message.bodyHtml ?: existing.bodyHtml,
+            timestampMillis = existing.updatedAtMillis,
+            isStarred = message.isStarred,
+            attachments = message.attachments.mapIndexed { index, attachment ->
+                AttachmentItem(
+                    id = "${message.id}-att-$index",
+                    name = attachment.name.ifBlank { "attachment" },
+                    sizeLabel = formatSize(attachment.size),
+                    mimeType = attachment.type.ifBlank { "application/octet-stream" },
+                )
+            }
         )
         return existing.copy(
             subject = if (existing.subject == "(no subject)" && message.subject.isNotBlank()) {
@@ -158,7 +179,7 @@ object MailMappers {
             snippet = existing.snippet.ifBlank { message.snippet },
             messages = listOfNotNull(updatedMessage),
             bodyText = body,
-            bodyHtml = message.bodyHtml,
+            bodyHtml = message.bodyHtml ?: existing.bodyHtml,
             etag = etag,
             bodyLoaded = true,
             isRead = message.isRead || existing.isRead,

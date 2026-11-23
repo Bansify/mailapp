@@ -245,6 +245,7 @@ private fun DiscoveredAccountCard(
             SenderAvatar(
                 name = discovered.displayName,
                 colorHex = com.bansify.mail.data.repository.MailMappers.avatarColor(discovered.mailboxAddress),
+                email = discovered.mailboxAddress,
                 size = 40.dp
             )
             Spacer(modifier = Modifier.width(12.dp))

@@ -64,7 +64,7 @@ fun EmailThreadRow(
     isTabletActive: Boolean = false,
     compactDensity: Boolean = false,
     rightSwipeAction: SwipeAction = SwipeAction.ARCHIVE,
-    leftSwipeAction: SwipeAction = SwipeAction.DELETE,
+    leftSwipeAction: SwipeAction = SwipeAction.ARCHIVE,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onAvatarClick: () -> Unit,
@@ -159,6 +159,7 @@ fun EmailThreadRow(
             SenderAvatar(
                 name = thread.primarySenderName,
                 colorHex = thread.primarySenderColorHex,
+                email = thread.primarySenderEmail,
                 isSelected = isSelected,
                 size = 40.dp,
                 onClick = onAvatarClick,
