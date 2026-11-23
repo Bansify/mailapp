@@ -1,10 +1,16 @@
 package com.bansify.mail.ui.screens
 
+import android.content.Intent
+import android.view.ViewGroup
+import android.webkit.WebResourceRequest
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,12 +48,14 @@ import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -65,10 +73,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.bansify.mail.data.model.AttachmentItem
 import com.bansify.mail.data.model.EmailThreadEntity
 import com.bansify.mail.data.model.MailFolder
@@ -335,6 +345,17 @@ fun ThreadDetailScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+            if (!thread.bodyLoaded) {
+                item(key = "thread_loading_indicator") {
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(2.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
             // Subject + Star + Label Pills Header
             item(key = "subject_header") {
                 Column(
@@ -401,7 +422,9 @@ fun ThreadDetailScreen(
                     onReply = { onReply(thread) },
                     onReplyAll = { onReplyAll(thread) },
                     onForward = { onForward(thread) },
-                    onAttachmentClick = { previewAttachment = it }
+                    onAttachmentClick = { previewAttachment = it },
+                    fallbackBodyHtml = if (index == thread.messages.lastIndex) thread.bodyHtml else null,
+                    isBodyLoaded = thread.bodyLoaded
                 )
                 if (index < thread.messages.lastIndex) {
                     HorizontalDivider(
@@ -511,7 +534,9 @@ private fun ThreadMessageCard(
     onReply: () -> Unit,
     onReplyAll: () -> Unit,
     onForward: () -> Unit,
-    onAttachmentClick: (AttachmentItem) -> Unit
+    onAttachmentClick: (AttachmentItem) -> Unit,
+    fallbackBodyHtml: String? = null,
+    isBodyLoaded: Boolean = true
 ) {
     var showMetadataDetails by remember { mutableStateOf(false) }
     var showMessageMenu by remember { mutableStateOf(false) }
@@ -531,6 +556,7 @@ private fun ThreadMessageCard(
             SenderAvatar(
                 name = message.senderName,
                 colorHex = message.senderColorHex,
+                email = message.senderEmail,
                 size = 40.dp
             )
             Spacer(modifier = Modifier.width(12.dp))
@@ -669,11 +695,65 @@ private fun ThreadMessageCard(
         // Expanded Body + Attachments
         AnimatedVisibility(visible = isExpanded) {
             Column(modifier = Modifier.padding(top = 14.dp)) {
-                Text(
-                    text = message.body,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                val effectiveHtml = message.bodyHtml?.takeIf { it.isNotBlank() } ?: fallbackBodyHtml?.takeIf { it.isNotBlank() }
+                var showPlainText by remember { mutableStateOf(false) }
+
+                if (!isBodyLoaded && message.body.isBlank() && effectiveHtml.isNullOrBlank()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Loading message...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else if (!effectiveHtml.isNullOrBlank() && !showPlainText) {
+                    HtmlEmailView(
+                        html = effectiveHtml,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (message.body.isNotBlank()) {
+                        TextButton(
+                            onClick = { showPlainText = true },
+                            modifier = Modifier.padding(top = 4.dp)
+                        ) {
+                            Text(
+                                text = "View plain text",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                } else {
+                    Text(
+                        text = message.body,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (!effectiveHtml.isNullOrBlank()) {
+                        TextButton(
+                            onClick = { showPlainText = false },
+                            modifier = Modifier.padding(top = 4.dp)
+                        ) {
+                            Text(
+                                text = "View formatted email",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
 
                 if (message.attachments.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(16.dp))
@@ -734,4 +814,106 @@ private fun MetadataLine(label: String, value: String) {
             color = MaterialTheme.colorScheme.onSurface
         )
     }
+}
+
+/**
+ * Renders rich HTML email bodies cleanly and safely using an isolated WebView.
+ * Handles viewport scaling, dark mode styling, and intercepts links to open in the system browser.
+ */
+@Composable
+fun HtmlEmailView(
+    html: String,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val isDark = isSystemInDarkTheme()
+
+    val formattedHtml = remember(html, isDark) {
+        val textColor = if (isDark) "#E2E8F0" else "#1E293B"
+        val linkColor = if (isDark) "#60A5FA" else "#2563EB"
+        """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0">
+            <style>
+                * {
+                    box-sizing: border-box;
+                }
+                html, body {
+                    margin: 0;
+                    padding: 0;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                    font-size: 14px;
+                    line-height: 1.5;
+                    color: $textColor;
+                    background-color: transparent;
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
+                }
+                img {
+                    max-width: 100% !important;
+                    height: auto !important;
+                }
+                table {
+                    max-width: 100% !important;
+                }
+                pre, code {
+                    white-space: pre-wrap;
+                    word-break: break-all;
+                }
+                a {
+                    color: $linkColor;
+                }
+            </style>
+        </head>
+        <body>
+            $html
+        </body>
+        </html>
+        """.trimIndent()
+    }
+
+    AndroidView(
+        modifier = modifier.fillMaxWidth(),
+        factory = { ctx ->
+            WebView(ctx).apply {
+                layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+                setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                isNestedScrollingEnabled = false
+                settings.apply {
+                    javaScriptEnabled = false
+                    loadWithOverviewMode = true
+                    useWideViewPort = false
+                    domStorageEnabled = false
+                    builtInZoomControls = false
+                    displayZoomControls = false
+                    defaultTextEncodingName = "utf-8"
+                }
+                webViewClient = object : WebViewClient() {
+                    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                        val uri = request?.url ?: return false
+                        return try {
+                            val intent = Intent(Intent.ACTION_VIEW, uri)
+                            context.startActivity(intent)
+                            true
+                        } catch (_: Exception) {
+                            false
+                        }
+                    }
+
+                    override fun onPageFinished(view: WebView?, url: String?) {
+                        super.onPageFinished(view, url)
+                        view?.requestLayout()
+                    }
+                }
+            }
+        },
+        update = { webView ->
+            webView.loadDataWithBaseURL(null, formattedHtml, "text/html", "utf-8", null)
+        }
+    )
 }

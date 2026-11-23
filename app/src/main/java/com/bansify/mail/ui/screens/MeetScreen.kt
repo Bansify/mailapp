@@ -96,7 +96,7 @@ fun MeetTabContent(
             }
             Spacer(modifier = Modifier.weight(1f))
             Text(
-                text = "Meet",
+                text = "Meetings",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold
             )
@@ -105,6 +105,7 @@ fun MeetTabContent(
                 SenderAvatar(
                     name = activeAccount.displayName,
                     colorHex = activeAccount.avatarColorHex,
+                    email = activeAccount.email,
                     size = 34.dp,
                     onClick = onOpenAccountDialog
                 )
@@ -316,6 +317,7 @@ fun MeetTabContent(
                                     SenderAvatar(
                                         name = activeAccount.displayName,
                                         colorHex = activeAccount.avatarColorHex,
+                                        email = activeAccount.email,
                                         size = 56.dp
                                     )
                                 }

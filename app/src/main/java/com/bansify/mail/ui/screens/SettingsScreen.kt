@@ -176,6 +176,7 @@ fun SettingsScreen(
                     SenderAvatar(
                         name = activeAccount.displayName,
                         colorHex = activeAccount.avatarColorHex,
+                        email = activeAccount.email,
                         size = 32.dp
                     )
                     Spacer(modifier = Modifier.width(12.dp))

@@ -97,6 +97,7 @@ fun AccountSwitcherDialog(
                                 SenderAvatar(
                                     name = activeAccount.displayName,
                                     colorHex = activeAccount.avatarColorHex,
+                                    email = activeAccount.email,
                                     size = 44.dp
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
@@ -186,6 +187,7 @@ fun AccountSwitcherDialog(
                             SenderAvatar(
                                 name = account.displayName,
                                 colorHex = account.avatarColorHex,
+                                email = account.email,
                                 size = 36.dp
                             )
                             Spacer(modifier = Modifier.width(12.dp))
@@ -240,6 +242,7 @@ fun AccountSwitcherDialog(
                                 colorHex = com.bansify.mail.data.repository.MailMappers.avatarColor(
                                     discovered.mailboxAddress
                                 ),
+                                email = discovered.mailboxAddress,
                                 size = 32.dp
                             )
                             Spacer(modifier = Modifier.width(12.dp))

@@ -246,7 +246,8 @@ fun InboxScreen(
                 bottomBar = {
                     if (!isWideScreen && !uiState.isSelectionMode) {
                         NavigationBar(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                            modifier = Modifier.height(64.dp)
                         ) {
                             NavigationBarItem(
                                 selected = uiState.activeBottomTab == BottomNavTab.MAIL,
@@ -325,8 +326,8 @@ fun InboxScreen(
                             NavigationRailItem(
                                 selected = uiState.activeBottomTab == BottomNavTab.MEET,
                                 onClick = { onSelectBottomTab(BottomNavTab.MEET) },
-                                icon = { Icon(Icons.Rounded.Videocam, contentDescription = "Meet") },
-                                label = { Text("Meet") }
+                                icon = { Icon(Icons.Rounded.Videocam, contentDescription = "Meetings") },
+                                label = { Text("Meetings") }
                             )
                         }
                     }
@@ -408,10 +409,11 @@ fun InboxScreen(
                                     PillSearchTopBar(
                                         activeAccountName = uiState.activeAccount?.displayName ?: "Bansify User",
                                         activeAccountColor = uiState.activeAccount?.avatarColorHex ?: 0xFF0B57D0,
+                                        activeAccountEmail = uiState.activeAccount?.email,
                                         onOpenDrawer = { scope.launch { drawerState.open() } },
                                         onOpenSearch = onOpenSearch,
                                         onOpenAccountSwitcher = { showAccountDialog = true },
-                                        modifier = if (isWideScreen) Modifier else Modifier.statusBarsPadding()
+                                        modifier = Modifier
                                     )
                                 }
                             }
@@ -424,7 +426,7 @@ fun InboxScreen(
                                 LazyColumn(
                                     state = listState,
                                     modifier = Modifier.fillMaxSize(),
-                                    contentPadding = PaddingValues(bottom = 96.dp)
+                                    contentPadding = PaddingValues(bottom = 80.dp)
                                 ) {
                                     // Current Folder Label + Quick Filters
                                     item(key = "folder_header") {
@@ -664,7 +666,8 @@ private fun PillSearchTopBar(
     onOpenDrawer: () -> Unit,
     onOpenSearch: () -> Unit,
     onOpenAccountSwitcher: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    activeAccountEmail: String? = null
 ) {
     Surface(
         shape = RoundedCornerShape(28.dp),
@@ -672,7 +675,7 @@ private fun PillSearchTopBar(
         tonalElevation = 2.dp,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .padding(horizontal = 16.dp, vertical = 6.dp)
             .height(52.dp)
             .clip(RoundedCornerShape(28.dp))
             .clickable(onClick = onOpenSearch)
@@ -707,6 +710,7 @@ private fun PillSearchTopBar(
             SenderAvatar(
                 name = activeAccountName,
                 colorHex = activeAccountColor,
+                email = activeAccountEmail,
                 size = 32.dp,
                 onClick = onOpenAccountSwitcher,
                 modifier = Modifier.testTag("account_avatar_button")
