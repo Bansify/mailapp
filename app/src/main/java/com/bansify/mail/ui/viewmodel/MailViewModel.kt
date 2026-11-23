@@ -129,8 +129,7 @@ class MailViewModel(
             activeAccountFlow.distinctUntilChanged { old, new -> old?.email == new?.email }
                 .collect { account ->
                     if (account != null && lastSyncedAccount != account.email) {
-                        lastSyncedAccount = account.email
-                        refreshCurrentFolder(showSpinner = false)
+                        refreshCurrentFolder(showSpinner = false, targetAccount = account)
                     }
                 }
         }
@@ -605,18 +604,23 @@ class MailViewModel(
         refreshCurrentFolder(showSpinner = true)
     }
 
-    fun refreshCurrentFolder(showSpinner: Boolean = false) {
-        val account = uiState.value.activeAccount ?: return
-        val folder = localState.value.selectedFolder
+    fun refreshCurrentFolder(showSpinner: Boolean = false, targetAccount: MailAccountEntity? = null) {
         syncJob?.cancel()
         syncJob = viewModelScope.launch {
+            val account = targetAccount
+                ?: uiState.value.activeAccount
+                ?: repository.activeAccount()
+                ?: return@launch
+            val folder = localState.value.selectedFolder
             if (showSpinner) localState.update { it.copy(isRefreshing = true) }
             try {
                 repository.refreshCurrentFolder(account, folder)
                 lastSyncedFolder = folder
+                lastSyncedAccount = account.email
                 auth.refreshDiscoveredAccounts()
                 localState.update { it.copy(syncError = null) }
             } catch (error: MailApiException) {
+                lastSyncedAccount = null
                 localState.update {
                     it.copy(
                         syncError = if (error.isUnauthenticated) {
@@ -624,16 +628,17 @@ class MailViewModel(
                         } else {
                             error.message?.takeIf { message -> message.isNotBlank() }
                                 ?.let { message -> "Could not sync Bansify Mail: $message" }
-                                ?: "Could not sync Bansify Mail"
+                                ?: "Could not sync Bansify Mail (${error.statusCode} ${error.code})"
                         },
                     )
                 }
             } catch (error: Exception) {
+                lastSyncedAccount = null
                 localState.update {
                     it.copy(
                         syncError = error.message?.takeIf { message -> message.isNotBlank() }
                             ?.let { message -> "Could not sync Bansify Mail: $message" }
-                            ?: "Could not sync Bansify Mail",
+                            ?: "Could not sync Bansify Mail (${error::class.simpleName})",
                     )
                 }
             } finally {

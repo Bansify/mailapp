@@ -3,6 +3,8 @@ package com.bansify.mail.data.remote
 import java.io.IOException
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -192,7 +194,7 @@ class MailApiClient(
         expectedSuccessCodes: Set<Int> = setOf(200, 201, 204, 304),
         ifNoneMatch: String? = null,
         parse: (Response) -> T,
-    ): T {
+    ): T = withContext(Dispatchers.IO) {
         assertSameHost(base, url)
         val builder = Request.Builder()
             .url(url)
@@ -211,7 +213,7 @@ class MailApiClient(
         } catch (error: IOException) {
             throw error
         }
-        return response.use { result ->
+        response.use { result ->
             if (result.code !in expectedSuccessCodes) {
                 throw toApiException(result)
             }
