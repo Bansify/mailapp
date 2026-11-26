@@ -113,7 +113,7 @@ A missing binding shows up here before users notice.
 ## Hard-won rules
 
 1. **Always pass explicit `vars` when deploying.** Inheriting bindings has silently
-   restored stale dashboard values (once pointing at `gothwadtech.com`).
+   restored stale dashboard values (once pointing at the old domain).
 2. **Pages custom domains are one-per-project.** A hostname attached to another project
    fails with `8000018 already added`.
 3. **A CNAME must point at the project that owns the domain**, otherwise the site 522s.
