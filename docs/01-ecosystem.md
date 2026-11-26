@@ -52,7 +52,7 @@ at `accounts.bansify.com` and every other product trusts that session.
 ## Naming
 
 The product is **Bansify**. Older code, database rows and docs may still say
-`Gothwad` / `gothwadtech.com` — those are historical. Anything user-visible must say
+The old brand name and its domain — those are historical. Anything user-visible must say
 Bansify and use `*.bansify.com`.
 
 ## What the app must never do
